@@ -239,11 +239,17 @@ class WalletVerification {
       $prefixedMessage = "\x19Ethereum Signed Message:\n" . strlen($message) . $message;
       $hash = Keccak::hash($prefixedMessage, 256, TRUE);
 
+      // Convert binary signature components to hex for elliptic-php.
+      // The library expects hex strings, not binary data.
+      $rHex = bin2hex($r);
+      $sHex = bin2hex($s);
+      $hashHex = bin2hex($hash);
+
       // Recover public key from signature.
       // elliptic-php expects v to be 0-3 (recovery ID), not 27-30.
       $recoveryId = $v - 27;
       $ec = new EC('secp256k1');
-      $pubKey = $ec->recoverPubKey($hash, ['r' => $r, 's' => $s], $recoveryId);
+      $pubKey = $ec->recoverPubKey($hashHex, ['r' => $rHex, 's' => $sHex], $recoveryId);
 
       if ($pubKey === NULL) {
         $this->logger->warning('Failed to recover public key from signature');

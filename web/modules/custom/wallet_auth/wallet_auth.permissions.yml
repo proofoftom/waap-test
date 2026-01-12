@@ -1,2 +1,4 @@
-# Wallet Auth permissions configuration
-# Permissions will be added here as the module develops
+authenticate with wallet:
+  title: 'Authenticate with wallet'
+  description: 'Allow users to authenticate using their wallet address.'
+  restrict access: false

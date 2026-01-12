@@ -1,2 +1,10 @@
-# Wallet Auth routing configuration
-# Routes will be added here as the module develops
+wallet_auth.authenticate:
+  path: '/wallet-auth/authenticate'
+  defaults:
+    _controller: '\Drupal\wallet_auth\Controller\AuthenticateController::authenticate'
+    _title: 'Wallet Authentication'
+  methods: [POST]
+  requirements:
+    _access: 'TRUE'
+  options:
+    no_cache: 'TRUE'

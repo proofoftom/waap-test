@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<ruleset name="Wallet Auth Drupal Module">
+    <description>PHPCS configuration for wallet_auth module</description>
+
+    <!-- Use Drupal and DrupalPractice standards -->
+    <rule ref="Drupal">
+        <exclude name="Drupal.Commenting.DocComment"/>
+        <exclude name="Drupal.Commenting.FunctionComment"/>
+        <exclude name="Drupal.Commenting.InlineComment"/>
+    </rule>
+    <rule ref="DrupalPractice"/>
+
+    <!-- Scan custom modules -->
+    <file>web/modules/custom</file>
+
+    <!-- Show colors in output -->
+    <arg name="colors"/>
+
+    <!-- Show progress -->
+    <arg value="p"/>
+
+    <!-- Check up to 8 files simultaneously -->
+    <arg name="parallel" value="8"/>
+</ruleset>

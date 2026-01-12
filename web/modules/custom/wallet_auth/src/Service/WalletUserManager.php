@@ -183,7 +183,7 @@ class WalletUserManager {
       ->execute()
       ->fetchField();
 
-    return $created ?: $this->time->getRequestTime();
+    return (int) $created ?: $this->time->getRequestTime();
   }
 
   /**

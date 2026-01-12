@@ -82,15 +82,7 @@ class AuthenticateController extends ControllerBase {
         ], 400);
       }
 
-      // 3. Verify nonce
-      if (!$this->verification->verifyNonce($nonce, $walletAddress)) {
-        return new JsonResponse([
-          'success' => FALSE,
-          'error' => 'Invalid or expired nonce',
-        ], 400);
-      }
-
-      // 4. Verify signature
+      // 3. Verify signature and SIWE message (includes nonce validation)
       if (!$this->verification->verifySignature($message, $signature, $walletAddress)) {
         return new JsonResponse([
           'success' => FALSE,
@@ -98,16 +90,16 @@ class AuthenticateController extends ControllerBase {
         ], 401);
       }
 
-      // 5. Delete nonce after successful verification
+      // 4. Delete nonce after successful verification
       $this->verification->deleteNonce($nonce);
 
-      // 6. Load or create user
+      // 5. Load or create user
       $user = $this->userManager->loginOrCreateUser($walletAddress);
 
-      // 7. Log user in
+      // 6. Log user in
       user_login_finalize($user);
 
-      // 8. Return success
+      // 7. Return success
       return new JsonResponse([
         'success' => TRUE,
         'uid' => $user->id(),

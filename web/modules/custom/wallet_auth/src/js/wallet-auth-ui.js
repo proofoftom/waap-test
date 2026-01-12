@@ -162,11 +162,14 @@ Drupal.behaviors.walletAuth = {
       var message = self.createSignMessage(address, nonce);
 
       // Step 3: Request signature from wallet
-      return self.connector.signMessage(message);
+      return self.connector.signMessage(message).then(function (signature) {
+        // Return both signature and message for verification
+        return { signature: signature, message: message, nonce: nonce };
+      });
 
-    }).then(function (signature) {
-      // Step 4: Send signature to backend for verification
-      return self.sendAuthentication(address, signature);
+    }).then(function (authData) {
+      // Step 4: Send signature and original message to backend for verification
+      return self.sendAuthentication(address, authData.signature, authData.message, authData.nonce);
 
     }).then(function (response) {
       if (response.success) {
@@ -185,8 +188,21 @@ Drupal.behaviors.walletAuth = {
 
     }).catch(function (error) {
       console.error('Authentication error:', error);
-      self.setState('error');
-      self.showError(error.message || 'Authentication failed');
+
+      // Check if user rejected the request
+      if (error.message && error.message.includes('User rejected') ||
+          error.message && error.message.includes('user rejected') ||
+          error.code === 4001) {
+        // User cancelled - reset to connected state so they can try again
+        self.setState('connected');
+        self.updateUI();
+        self.showError('Signature request was cancelled. Please try again.');
+      } else {
+        // Actual error
+        self.setState('error');
+        self.updateUI();
+        self.showError(error.message || 'Authentication failed');
+      }
     });
   },
 
@@ -213,19 +229,42 @@ Drupal.behaviors.walletAuth = {
   /**
    * Create message for signing.
    *
-   * Uses simple format compatible with backend EIP-191 verification.
+   * Generates a Sign-In with Ethereum (SIWE/EIP-4361) compliant message.
    */
   createSignMessage: function (address, nonce) {
-    return 'Sign this message to prove ownership of ' + address + '.\n\nNonce: ' + nonce;
+    var domain = window.location.hostname;
+    var uri = window.location.origin;
+    var issuedAt = new Date().toISOString();
+    var expirationTime = new Date(Date.now() + 300000).toISOString(); // 5 minutes
+    var chainId = drupalSettings.walletAuth.chainId || 1;
+
+    var message = domain + ' wants you to sign in with your Ethereum account:\n';
+    message += address + '\n\n';
+    message += 'Sign in with Ethereum to prove ownership of your wallet.\n\n';
+    message += 'URI: ' + uri + '\n';
+    message += 'Version: 1\n';
+    message += 'Chain ID: ' + chainId + '\n';
+    message += 'Nonce: ' + nonce + '\n';
+    message += 'Issued At: ' + issuedAt + '\n';
+    message += 'Expiration Time: ' + expirationTime;
+
+    return message;
   },
 
   /**
    * Send authentication data to backend.
+   *
+   * @param {string} address
+   *   The wallet address.
+   * @param {string} signature
+   *   The signature from the wallet.
+   * @param {string} message
+   *   The original message that was signed.
+   * @param {string} nonce
+   *   The nonce used in the message.
    */
-  sendAuthentication: function (address, signature) {
+  sendAuthentication: function (address, signature, message, nonce) {
     var apiEndpoint = drupalSettings.walletAuth.apiEndpoint + '/authenticate';
-    var nonce = this.connector.lastNonce; // Store this when fetching
-    var message = this.createSignMessage(address, nonce);
 
     return fetch(apiEndpoint, {
       method: 'POST',

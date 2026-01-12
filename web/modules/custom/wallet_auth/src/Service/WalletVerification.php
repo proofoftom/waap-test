@@ -161,24 +161,28 @@ class WalletVerification {
   }
 
   /**
-   * Verify an Ethereum signature matches the expected address.
+   * Verify a SIWE (Sign-In with Ethereum) message and signature.
    *
-   * This implements EIP-191 (personal_sign) signature verification.
-   * The message is prefixed with "\x19Ethereum Signed Message:\n" before
-   * being hashed with Keccak-256.
+   * This implements EIP-4361 message parsing and validation,
+   * along with EIP-191 (personal_sign) signature verification.
    *
    * @param string $message
-   *   The original message that was signed.
+   *   The SIWE message that was signed.
    * @param string $signature
    *   The hex signature (0x-prefixed).
    * @param string $walletAddress
    *   The expected wallet address (0x-prefixed, checksummed).
    *
    * @return bool
-   *   TRUE if signature is valid for the address, FALSE otherwise.
+   *   TRUE if signature and message are valid, FALSE otherwise.
    */
   public function verifySignature(string $message, string $signature, string $walletAddress): bool {
     try {
+      // Log the received message for debugging.
+      $this->logger->debug('Received message for verification (length @len): @message', [
+        '@len' => strlen($message),
+        '@message' => $message,
+      ]);
       // Validate inputs.
       if (!$this->validateAddress($walletAddress)) {
         $this->logger->warning('Invalid wallet address format');
@@ -187,6 +191,53 @@ class WalletVerification {
 
       if (!str_starts_with($signature, '0x')) {
         $this->logger->warning('Signature must be 0x-prefixed');
+        return FALSE;
+      }
+
+      // Parse and validate SIWE message structure.
+      $siweFields = $this->parseSiweMessage($message);
+      if ($siweFields === NULL) {
+        $this->logger->warning('Invalid SIWE message format');
+        return FALSE;
+      }
+
+      $this->logger->debug('SIWE fields parsed: @fields', ['@fields' => json_encode($siweFields)]);
+
+      // Validate the address in the message matches the expected address.
+      if (strtolower($siweFields['address']) !== strtolower($walletAddress)) {
+        $this->logger->warning('SIWE message address mismatch');
+        return FALSE;
+      }
+
+      // Validate the nonce hasn't expired.
+      if (isset($siweFields['expirationTime'])) {
+        $expirationTime = strtotime($siweFields['expirationTime']);
+        if ($expirationTime < $this->time->getRequestTime()) {
+          $this->logger->warning('SIWE message has expired');
+          return FALSE;
+        }
+      }
+
+      // Validate the message wasn't issued in the future.
+      if (isset($siweFields['issuedAt'])) {
+        $issuedAt = strtotime($siweFields['issuedAt']);
+        // Allow 30 seconds clock skew.
+        if ($issuedAt > $this->time->getRequestTime() + 30) {
+          $this->logger->warning('SIWE message issued in the future');
+          return FALSE;
+        }
+      }
+
+      // Extract nonce for verification later.
+      $nonce = $siweFields['nonce'] ?? '';
+      if (empty($nonce)) {
+        $this->logger->warning('SIWE message missing nonce');
+        return FALSE;
+      }
+
+      // Verify the nonce exists and is valid.
+      if (!$this->verifyNonce($nonce, $walletAddress)) {
+        $this->logger->warning('Invalid or expired nonce in SIWE message');
         return FALSE;
       }
 
@@ -213,25 +264,28 @@ class WalletVerification {
         '@v' => $v,
       ]);
 
-      // Normalize v for EIP-155 signatures.
-      // EIP-155 uses v = chainId * 2 + 35 or chainId * 2 + 36
-      // For personal_sign (EIP-191), we need v to be 27 or 28.
-      // If v >= 35, it's likely an EIP-155 signature that needs conversion.
+      // Normalize v to recovery ID (0-3).
+      // Different wallets use different v formats:
+      // - Standard Ethereum: v = 27 + recovery_id (27 or 28)
+      // - EIP-155: v = chainId * 2 + 35 + recovery_id (e.g., 37, 38 for mainnet)
+      // - Some SDKs: v = recovery_id directly (0 or 1)
+      $recoveryId = $v;
+
       if ($v >= 35) {
-        // Convert from EIP-155 v to EIP-191 v (27 or 28)
-        // Formula: v = chainId * 2 + 35 + recovery_id (0 or 1)
-        // So: recovery_id = (v - 35) % 2, then v = 27 + recovery_id
-        $v = 27 + (($v - 35) % 2);
-
-        $this->logger->debug('Normalized EIP-155 v to @v', ['@v' => $v]);
+        // EIP-155 signature: extract recovery ID from v
+        $recoveryId = ($v - 35) % 2;
+        $this->logger->debug('Normalized EIP-155 v to recovery ID @id', ['@id' => $recoveryId]);
       }
-      elseif ($v < 27) {
-        $v += 27;
+      elseif ($v >= 27) {
+        // Standard Ethereum signature: v = 27 + recovery_id
+        $recoveryId = $v - 27;
+        $this->logger->debug('Normalized Ethereum v to recovery ID @id', ['@id' => $recoveryId]);
       }
+      // else: v is already the recovery ID (0-3 range)
 
-      // Validate v is in expected range (27-30 for recovery)
-      if ($v < 27 || $v > 30) {
-        $this->logger->warning('Invalid v value after normalization: @v', ['@v' => $v]);
+      // Validate recovery ID is in valid range (0-3).
+      if ($recoveryId < 0 || $recoveryId > 3) {
+        $this->logger->warning('Invalid recovery ID: @id', ['@id' => $recoveryId]);
         return FALSE;
       }
 
@@ -239,15 +293,17 @@ class WalletVerification {
       $prefixedMessage = "\x19Ethereum Signed Message:\n" . strlen($message) . $message;
       $hash = Keccak::hash($prefixedMessage, 256, TRUE);
 
+      $this->logger->debug('Message hash for signature recovery: @hash', [
+        '@hash' => '0x' . bin2hex($hash),
+      ]);
+
       // Convert binary signature components to hex for elliptic-php.
       // The library expects hex strings, not binary data.
       $rHex = bin2hex($r);
       $sHex = bin2hex($s);
       $hashHex = bin2hex($hash);
 
-      // Recover public key from signature.
-      // elliptic-php expects v to be 0-3 (recovery ID), not 27-30.
-      $recoveryId = $v - 27;
+      // Recover public key from signature using the recovery ID.
       $ec = new EC('secp256k1');
       $pubKey = $ec->recoverPubKey($hashHex, ['r' => $rHex, 's' => $sHex], $recoveryId);
 
@@ -263,7 +319,10 @@ class WalletVerification {
       $isValid = strtolower($recoveredAddress) === strtolower($walletAddress);
 
       if (!$isValid) {
-        $this->logger->warning('Signature verification failed: address mismatch');
+        $this->logger->warning('Signature verification failed: address mismatch. Expected: @expected, Recovered: @recovered', [
+          '@expected' => $walletAddress,
+          '@recovered' => $recoveredAddress,
+        ]);
       }
       else {
         $this->logger->info('Signature verified successfully for @wallet', ['@wallet' => $walletAddress]);
@@ -367,6 +426,113 @@ class WalletVerification {
     }
 
     return TRUE;
+  }
+
+  /**
+   * Parse a Sign-In with Ethereum (EIP-4361) message.
+   *
+   * @param string $message
+   *   The SIWE message to parse.
+   *
+   * @return array|null
+   *   Associative array of SIWE fields, or NULL if parsing fails.
+   */
+  protected function parseSiweMessage(string $message): ?array {
+    // SIWE format:
+    // <domain> wants you to sign in with your Ethereum account:
+    // <address>
+    //
+    // <statement>
+    //
+    // URI: <uri>
+    // Version: <version>
+    // Chain ID: <chainId>
+    // Nonce: <nonce>
+    // Issued At: <issuedAt>
+    // Expiration Time: <expirationTime>
+    // Not Before: <notBefore>
+    // Request ID: <requestId>
+    // Resources:
+    // - <resource1>
+    // - <resource2>
+
+    $fields = [];
+    $lines = explode("\n", $message);
+
+    // Parse domain and address from the header.
+    if (count($lines) < 3) {
+      return NULL;
+    }
+
+    // First line: "<domain> wants you to sign in with your Ethereum account:"
+    $domainMatch = [];
+    if (!preg_match('/^(.+?) wants you to sign in with your Ethereum account:$/', $lines[0], $domainMatch)) {
+      return NULL;
+    }
+    $fields['domain'] = trim($domainMatch[1]);
+
+    // Second line: "<address>"
+    $address = trim($lines[1]);
+    if (!$this->validateAddress($address)) {
+      return NULL;
+    }
+    $fields['address'] = $address;
+
+    // Find the statement (between address and first field).
+    $statementEnd = 2;
+    $statementParts = [];
+    for ($i = 2; $i < count($lines); $i++) {
+      $line = trim($lines[$i]);
+      // Stop at first field (contains colon followed by space).
+      if (preg_match('/^[A-Za-z\s]+:\s*.+$/', $line)) {
+        break;
+      }
+      if ($line !== '') {
+        $statementParts[] = $line;
+      }
+      $statementEnd = $i;
+    }
+    if (!empty($statementParts)) {
+      $fields['statement'] = implode("\n", $statementParts);
+    }
+
+    // Parse the remaining fields.
+    for ($i = $statementEnd; $i < count($lines); $i++) {
+      $line = trim($lines[$i]);
+      if ($line === '') {
+        continue;
+      }
+
+      // Handle continuation lines (resources).
+      if (str_starts_with($line, '- ')) {
+        if (!isset($fields['resources'])) {
+          $fields['resources'] = [];
+        }
+        $fields['resources'][] = substr($line, 2);
+        continue;
+      }
+
+      // Parse key-value pairs.
+      if (strpos($line, ':') !== FALSE) {
+        [$key, $value] = explode(':', $line, 2);
+        $key = trim($key);
+        $value = trim($value);
+
+        // Convert key to camelCase.
+        $camelKey = lcfirst(str_replace(' ', '', ucwords(str_replace('-', ' ', strtolower($key)))));
+        $fields[$camelKey] = $value;
+      }
+    }
+
+    // Validate required fields.
+    $required = ['domain', 'address', 'uri', 'version', 'nonce', 'issuedAt'];
+    foreach ($required as $field) {
+      if (!isset($fields[$field]) || $fields[$field] === '') {
+        return NULL;
+      }
+    }
+
+    return $fields;
   }
 
   /**

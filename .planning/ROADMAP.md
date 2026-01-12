@@ -33,54 +33,51 @@ This roadmap breaks down the implementation of a Drupal 10 contrib module for wa
 
 ---
 
-## Phase 2: Wallet as a Protocol Integration Research
+## Phase 2: Wallet as a Protocol Integration Research ✅
 
 **Goal:** Understand Wallet as a Protocol spec and SDK requirements
 
+**Status:** Complete (2025-01-12)
+
 **Deliverables:**
-- Clear understanding of WaaP authentication flow
-- Documented integration approach
-- NPM package strategy following safe_smart_accounts pattern
+- ✅ Clear understanding of WaaP authentication flow
+- ✅ Documented integration approach
+- ✅ NPM package strategy following safe_smart_accounts pattern
 
-**Unknowns to research:**
-- [research] Wallet as a Protocol specification details
-- [research] WaaP SDK availability and usage
-- [research] safe_smart_accounts NPM build pattern for Drupal
-- [research] Message signing flow for wallet ownership verification
-
-**Tasks:**
-1. Study Wallet as a Protocol documentation
-2. Analyze safe_smart_accounts module for NPM package pattern
-3. Design JavaScript SDK integration approach
-4. Document authentication flow (connect wallet → sign message → verify)
-5. Map WaaP endpoints to Drupal services
+**Artifacts:**
+- `.planning/phases/02-protocol-integration/RESEARCH.md`
+- Architecture Decision Records (ADR-003, ADR-004)
 
 ---
 
-## Phase 3: Backend Authentication System
+## Phase 3: Backend Authentication System ✅
 
 **Goal:** Implement Drupal backend for wallet authentication
 
-**Deliverables:**
-- Wallet verification service
-- User creation/linking logic
-- Database schema for wallet-address mapping
-- Authentication provider implementation
+**Status:** Complete (2025-01-12)
 
-**Tasks:**
-1. Create database schema for wallet_address to user mapping
-2. Implement WalletVerification service
-3. Create authentication provider plugin
-4. Implement user account creation on first auth
-5. Implement user login on subsequent auth
-6. Add route for signature verification endpoint
-7. Add proper permission and security controls
+**Deliverables:**
+- ✅ Wallet verification service (EIP-191 signature verification)
+- ✅ User creation/linking logic (via External Auth)
+- ✅ Database schema for wallet-address mapping
+- ✅ REST API endpoint (`/wallet-auth/authenticate`)
+
+**Commits:** 8 (2e0e530 through 24de79a)
+
+**Artifacts:**
+- `web/modules/custom/wallet_auth/src/Service/WalletVerification.php`
+- `web/modules/custom/wallet_auth/src/Service/WalletUserManager.php`
+- `web/modules/custom/wallet_auth/src/Controller/AuthenticateController.php`
+- `wallet_auth.install` - Database schema
+- `.planning/phases/03-backend-auth/SUMMARY.md`
 
 ---
 
 ## Phase 4: Frontend Wallet Integration
 
 **Goal:** Implement wallet connection and signing UI
+
+**Status:** Ready to Start
 
 **Deliverables:**
 - NPM package build pipeline
@@ -103,6 +100,8 @@ This roadmap breaks down the implementation of a Drupal 10 contrib module for wa
 
 **Goal:** Complete Drupal integration and refine UX
 
+**Status:** Pending
+
 **Deliverables:**
 - Configurable module settings
 - Proper error handling and user feedback
@@ -123,6 +122,8 @@ This roadmap breaks down the implementation of a Drupal 10 contrib module for wa
 ## Phase 6: Testing & Validation
 
 **Goal:** Ensure production-ready quality
+
+**Status:** Pending
 
 **Deliverables:**
 - Working authentication flow end-to-end
@@ -147,7 +148,7 @@ This roadmap breaks down the implementation of a Drupal 10 contrib module for wa
 
 **Critical path:** Phase 1 → 2 → 3 → 4 → 5 → 6
 
-**Progress:** 1/6 phases complete (17%)
+**Progress:** 3/6 phases complete (50%)
 
 **Estimated complexity:** Medium — Leverages existing patterns (safe_smart_accounts) and clear protocol spec
 

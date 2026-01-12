@@ -212,7 +212,7 @@ Drupal.behaviors.walletAuth = {
    * Send authentication data to backend.
    */
   sendAuthentication: function (address, signature) {
-    var apiEndpoint = drupalSettings.walletAuth.apiEndpoint;
+    var apiEndpoint = drupalSettings.walletAuth.apiEndpoint + '/authenticate';
     var nonce = this.connector.lastNonce; // Store this when fetching
     var message = this.createSignMessage(address, nonce);
 

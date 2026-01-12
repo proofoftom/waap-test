@@ -1,0 +1,157 @@
+/**
+ * @file
+ * Wallet authentication component styles.
+ */
+
+/**
+ * Wallet auth container.
+ */
+.wallet-auth-container {
+  margin: 1rem 0;
+  max-width: 400px;
+}
+
+/**
+ * Login button.
+ */
+.wallet-auth-login-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #6c757d;
+  color: #fff;
+  border: 2px solid #6c757d;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.wallet-auth-login-btn:hover,
+.wallet-auth-login-btn:focus {
+  background-color: #5a6268;
+  border-color: #5a6268;
+  outline: none;
+}
+
+.wallet-auth-login-btn:disabled {
+  background-color: #ccc;
+  border-color: #ccc;
+  cursor: not-allowed;
+}
+
+/**
+ * Disconnect button.
+ */
+.wallet-auth-disconnect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  color: #6c757d;
+  border: 1px solid #6c757d;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wallet-auth-disconnect-btn:hover,
+.wallet-auth-disconnect-btn:focus {
+  background-color: #f8f9fa;
+}
+
+/**
+ * Status text.
+ */
+.wallet-auth-status {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+/**
+ * Loading spinner.
+ */
+.wallet-auth-loading {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: wallet-auth-spin 0.6s linear infinite;
+}
+
+@keyframes wallet-auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/**
+ * State-specific styles.
+ */
+[data-wallet-auth-state="connecting"] .wallet-auth-login-btn {
+  position: relative;
+}
+
+[data-wallet-auth-state="connecting"] .wallet-auth-login-btn::before {
+  content: '';
+  position: absolute;
+  left: 0.75rem;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: wallet-auth-spin 0.6s linear infinite;
+}
+
+[data-wallet-auth-state="connecting"] .wallet-auth-login-btn span {
+  padding-left: 1.5rem;
+}
+
+/**
+ * Error state.
+ */
+.wallet-auth-container[data-wallet-auth-state="error"] .wallet-auth-status {
+  color: #dc3545;
+}
+
+/**
+ * Success state.
+ */
+.wallet-auth-container[data-wallet-auth-state="authenticated"] .wallet-auth-status {
+  color: #28a745;
+}
+
+/**
+ * Wallet icon (SVG background or emoji).
+ */
+.wallet-auth-icon {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/**
+ * Responsive adjustments.
+ */
+@media (max-width: 600px) {
+  .wallet-auth-container {
+    max-width: 100%;
+  }
+
+  .wallet-auth-login-btn {
+    width: 100%;
+  }
+}

@@ -1,0 +1,37 @@
+# Drupal and Composer dependencies
+vendor/
+web/core/
+web/modules/contrib/
+web/profiles/contrib/
+web/themes/contrib/
+web/libraries/
+
+# Drupal files
+web/sites/default/files/
+web/sites/default/private/
+web/sites/default/settings.local.php
+web/sites/default/services.yml
+
+# DDEV
+.ddev/.dbimage.yml
+.ddev/db_snapshots/
+.ddev/commands/.gitattributes
+.ddev/providers/
+
+# Composer
+# Note: composer.lock is intentionally committed for Drupal projects
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+npm-debug.log
+yarn-error.log

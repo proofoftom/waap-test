@@ -6,7 +6,7 @@ namespace Drupal\wallet_auth\Service;
 
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\Core\Datetime\TimeInterface;
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Elliptic\EC;
 use kornrunner\Keccak;
@@ -33,7 +33,7 @@ class WalletVerification {
   /**
    * The time service.
    *
-   * @var \Drupal\Core\Datetime\TimeInterface
+   * @var \Drupal\Component\Datetime\TimeInterface
    */
   protected $time;
 
@@ -319,7 +319,7 @@ class WalletVerification {
     for ($i = 0; $i < 40; $i++) {
       // The nth character should be uppercase if the nth character of addressHash is >= 8
       $char = $address[$i];
-      $hashChar = (int) $addressHash[$i];
+      $hashChar = hexdec($addressHash[$i]);
 
       if (ctype_digit($char)) {
         continue;

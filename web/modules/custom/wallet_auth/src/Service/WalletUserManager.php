@@ -8,7 +8,7 @@ use Drupal\Core\Database\Connection;
 use Drupal\externalauth\ExternalAuthInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\Core\Datetime\TimeInterface;
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\user\UserInterface;
 
 /**
@@ -206,7 +206,7 @@ class WalletUserManager {
     $account->save();
 
     // Link wallet to user
-    $this->linkWalletToUser($walletAddress, $account->id());
+    $this->linkWalletToUser($walletAddress, (int) $account->id());
 
     $this->logger->info('Created new user @username from wallet @wallet', [
       '@username' => $username,

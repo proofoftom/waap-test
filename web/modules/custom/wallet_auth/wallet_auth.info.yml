@@ -13,5 +13,15 @@ description: 'Wallet-based authentication using Wallet as a Protocol'
 # Drupal core version requirement: ^10 means Drupal 10.x
 core_version_requirement: ^10
 
+# PHP version requirement
+php: 8.2
+
 # Package: Groups related modules together in the admin interface
 package: Web3
+
+# Dependencies
+dependencies:
+  - externalauth:externalauth
+
+# Configure path (link to settings form)
+configure: wallet_auth.settings

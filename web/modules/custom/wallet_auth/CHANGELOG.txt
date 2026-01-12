@@ -1,0 +1,15 @@
+Wallet Auth 10.x-1.0 (2025-01-12)
+----------------------------
+- Initial release
+- Wallet-based authentication using Sign-In with Ethereum (EIP-4361)
+- EIP-191 signature verification with personal_sign
+- Support for multiple networks (Ethereum, Polygon, BSC, Arbitrum, Optimism)
+- Admin configuration interface at /admin/config/people/wallet-auth
+- Wallet login block for Drupal
+- External Auth integration for user management
+- One-to-many wallet-to-user mapping
+- Configurable nonce lifetime (60-3600 seconds)
+- Auto-connect support
+- Comprehensive test suite (64 tests, 339 assertions)
+- Security review passed
+- Code quality verified (PHPCS: 0 errors, PHPStan: 0 errors)

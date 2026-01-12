@@ -1,0 +1,8 @@
+# Wallet Auth module information
+# Provides wallet-based authentication using Wallet as a Protocol
+
+name: 'Wallet Auth'
+type: module
+description: 'Wallet-based authentication using Wallet as a Protocol'
+core_version_requirement: ^10
+package: Web3

@@ -103,6 +103,15 @@ Drupal.behaviors.walletAuth = {
   handleLogin: function () {
     var self = this;
 
+    // Check if already connected to WaaP
+    var existingAddress = this.connector.getAddress();
+    if (existingAddress) {
+      // Already connected, proceed directly to authentication
+      console.log('Already connected to WaaP, proceeding to authentication');
+      this.authenticate(existingAddress);
+      return;
+    }
+
     this.setState('connecting');
 
     this.connector.login().then(function (loginType) {
@@ -264,21 +273,24 @@ Drupal.behaviors.walletAuth = {
 
     switch (this.state) {
       case 'idle':
-        $loginButton.removeClass('visually-hidden');
+        $loginButton.removeClass('visually-hidden').find('span').text('Connect Wallet');
         $status.text('Connect your wallet to login');
         break;
 
       case 'connecting':
-        $loginButton.removeClass('visually-hidden').prop('disabled', true);
+        $loginButton.removeClass('visually-hidden').prop('disabled', true).find('span').text('Connecting...');
         $status.text('Connecting to wallet...');
         break;
 
       case 'connected':
+        // When connected but not authenticated, show both sign-in and disconnect
+        $loginButton.removeClass('visually-hidden').prop('disabled', false).find('span').text('Sign in');
         $disconnectButton.removeClass('visually-hidden');
         $status.text('Connected: ' + this.formatAddress(this.connector.getAddress()));
         break;
 
       case 'signing':
+        $loginButton.removeClass('visually-hidden').prop('disabled', true).find('span').text('Signing...');
         $status.text('Please sign the message in your wallet...');
         break;
 
@@ -287,7 +299,7 @@ Drupal.behaviors.walletAuth = {
         break;
 
       case 'error':
-        $loginButton.removeClass('visually-hidden').prop('disabled', false);
+        $loginButton.removeClass('visually-hidden').prop('disabled', false).find('span').text('Try Again');
         $status.text('Authentication failed. Please try again.');
         break;
     }

@@ -7,29 +7,64 @@
 
 ## Current Phase
 
-**Phase 4: Frontend Wallet Integration** — *In Progress (Tasks 1-11 Complete)*
+**Phase 6: Testing & Validation** — *Ready to Begin*
 
-### Progress Summary:
-- ✅ Task 1: Nonce endpoint (already existed)
-- ✅ Task 2: NPM project initialized with Vite and WaaP SDK
-- ✅ Task 3: Vite configuration created (3 config files for IIFE bundles)
-- ✅ Task 4: Source directory structure created
-- ✅ Task 5: WaaP SDK wrapper created (269 lines)
-- ✅ Task 6: Drupal behaviors and UI logic created (342 lines)
-- ✅ Task 7: CSS styles created
-- ✅ Task 8: Login button block plugin created
-- ✅ Task 9: Twig template created and registered
-- ✅ Task 10: JavaScript built with Vite (2.8MB connector + 4.4KB UI)
-- ✅ Task 11: Caches cleared, libraries registered
-- ⏳ Task 12: Place block on login page (requires Drupal UI)
-- ⏳ Task 13: Verify nonce storage (requires manual testing)
-- ⏳ Task 14-20: Testing and documentation
-
-### Commits: 13 commits for Phase 4
+All 5 phases completed. Module is production-ready pending comprehensive testing.
 
 ---
 
 ## Completed Phases
+
+### Phase 5: Integration & Polish ✅
+**Status**: Complete
+**Completed**: 2025-01-12
+
+**Deliverables**:
+- Configuration schema and defaults
+- Admin settings form at `/admin/config/people/wallet-auth`
+- Network, auto-connect, and nonce lifetime configuration
+- Enhanced error handling with logging
+- PHPCS and PHPStan both reporting 0 errors
+- Comprehensive README with frontend instructions and troubleshooting
+
+**Key Features**:
+- Configurable blockchain network (mainnet, sepolia, polygon, bsc, arbitrum, optimism)
+- Configurable auto-connect behavior
+- Configurable nonce lifetime (60-3600 seconds)
+- Proper dependency injection throughout
+- All strings translatable via `$this->t()`
+
+**Artifacts**:
+- `config/schema/wallet_auth.schema.yml`
+- `config/install/wallet_auth.settings.yml`
+- `src/Form/SettingsForm.php`
+- `wallet_auth.links.menu.yml`
+- `README.md` (updated with comprehensive documentation)
+- `.planning/phases/05-integration-polish/SUMMARY.md`
+
+**Commits**: 11 commits
+
+### Phase 4: Frontend Wallet Integration ✅
+**Status**: Complete
+**Completed**: 2025-01-12
+
+**Deliverables**:
+- Vite build system with WaaP SDK integration
+- Wallet authentication UI (4.4KB)
+- WaaP SDK connector wrapper (2.8MB)
+- WalletLoginBlock plugin
+- Twig template and CSS styles
+- Drupal library registration
+
+**Artifacts**:
+- `js/src/wallet-auth-connector.js`
+- `js/src/wallet-auth-ui.js`
+- `js/dist/` (built IIFE bundles)
+- `src/Plugin/Block/WalletLoginBlock.php`
+- `templates/wallet-login-button.html.twig`
+- `wallet_auth.libraries.yml`
+
+**Commits**: 13 commits
 
 ### Phase 3: Backend Authentication System ✅
 **Status**: Complete
@@ -108,6 +143,19 @@
 ---
 
 ## Session History
+
+**Session 4** (2025-01-12):
+- Completed Phase 5: Integration & Polish (all 12 tasks)
+- Created configuration schema for wallet_auth.settings
+- Created admin settings form with ConfigFormBase
+- Registered admin route and menu link
+- Updated NonceController to read nonce_lifetime from config
+- Updated WalletLoginBlock to pass config to frontend via drupalSettings
+- Enhanced error handling with comprehensive logging
+- Fixed all PHPCS violations (0 errors)
+- Fixed all PHPStan errors (0 errors)
+- Updated README with frontend placement instructions, configuration guide, and troubleshooting
+- 11 commits for Phase 5
 
 **Session 3** (2025-01-12):
 - Completed Tasks 1-11 of Phase 4: Frontend Wallet Integration

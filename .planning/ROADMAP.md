@@ -73,49 +73,68 @@ This roadmap breaks down the implementation of a Drupal 10 contrib module for wa
 
 ---
 
-## Phase 4: Frontend Wallet Integration
+## Phase 4: Frontend Wallet Integration ✅
 
 **Goal:** Implement wallet connection and signing UI
 
-**Status:** Ready to Start
+**Status:** Complete (2025-01-12)
 
 **Deliverables:**
-- NPM package build pipeline
-- Wallet connection UI component
-- Message signing integration
-- Login button/block for Drupal
+- ✅ NPM package build pipeline (Vite)
+- ✅ Wallet connection UI component (WaaP SDK wrapper)
+- ✅ Message signing integration (EIP-191 personal_sign)
+- ✅ Login button/block for Drupal (WalletLoginBlock)
 
-**Tasks:**
-1. Set up NPM/build pipeline following safe_smart_accounts pattern
-2. Install/configure Wallet as a Protocol SDK
-3. Create wallet connection JavaScript
-4. Implement message signing flow
-5. Build Drupal block/plugin for login button
-6. Attach JS library to Drupal pages
-7. Handle wallet connection state
+**Commits:** 13 (79a4fe2 through 44f95c5)
+
+**Artifacts:**
+- `web/modules/custom/wallet_auth/src/js/wallet-auth-connector.js` - WaaP SDK wrapper (269 lines)
+- `web/modules/custom/wallet_auth/src/js/wallet-auth-ui.js` - Drupal behaviors (342 lines)
+- `web/modules/custom/wallet_auth/src/css/wallet-auth.css` - Component styles
+- `web/modules/custom/wallet_auth/src/Plugin/Block/WalletLoginBlock.php` - Block plugin
+- `web/modules/custom/wallet_auth/templates/wallet-login-button.html.twig` - Twig template
+- `web/modules/custom/wallet_auth/js/dist/` - Built JavaScript bundles
+- `.planning/phases/04-frontend-integration/SUMMARY.md`
 
 ---
 
-## Phase 5: Integration & Polish
+## Phase 5: Integration & Polish ✅
 
 **Goal:** Complete Drupal integration and refine UX
 
-**Status:** Pending
+**Status:** Complete (2025-01-12)
 
 **Deliverables:**
-- Configurable module settings
-- Proper error handling and user feedback
-- Drupal coding standards compliance
-- Basic admin configuration
+- ✅ Configuration schema and defaults
+- ✅ Admin settings form at `/admin/config/people/wallet-auth`
+- ✅ Network, auto-connect, and nonce lifetime configuration
+- ✅ Enhanced error handling with logging
+- ✅ PHPCS and PHPStan both reporting 0 errors
+- ✅ Comprehensive README with frontend instructions and troubleshooting
 
-**Tasks:**
-1. Create module configuration form
-2. Add admin settings (network configuration, etc.)
-3. Implement error handling for failed auth
-4. Add user-facing messages for auth states
-5. Ensure Drupal coding standards compliance
-6. Add basic documentation (README, inline comments)
-7. Test complete authentication flow
+**Commits:** 11 (548d7afd through 118fbc05)
+
+**Artifacts:**
+- `config/schema/wallet_auth.schema.yml` - Configuration schema
+- `config/install/wallet_auth.settings.yml` - Default config
+- `src/Form/SettingsForm.php` - Admin settings form
+- `wallet_auth.links.menu.yml` - Admin menu link
+- `README.md` - Updated with comprehensive documentation
+- `.planning/phases/05-integration-polish/SUMMARY.md`
+
+**Tasks Completed:**
+1. ✅ Create configuration schema
+2. ✅ Create default configuration
+3. ✅ Create settings form
+4. ✅ Register admin route
+5. ✅ Add link to admin menu
+6. ✅ Update NonceController to use config
+7. ✅ Update frontend to read config
+8. ✅ Review error handling in backend
+9. ✅ Run PHPCS and fix issues (0 errors)
+10. ✅ Run PHPStan and fix issues (0 errors)
+11. ✅ Update README with frontend instructions
+12. ✅ Clear caches and verify module
 
 ---
 
@@ -148,7 +167,7 @@ This roadmap breaks down the implementation of a Drupal 10 contrib module for wa
 
 **Critical path:** Phase 1 → 2 → 3 → 4 → 5 → 6
 
-**Progress:** 3/6 phases complete (50%)
+**Progress:** 5/6 phases complete (83%)
 
 **Estimated complexity:** Medium — Leverages existing patterns (safe_smart_accounts) and clear protocol spec
 

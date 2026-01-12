@@ -267,22 +267,22 @@ class WalletVerification {
       // Normalize v to recovery ID (0-3).
       // Different wallets use different v formats:
       // - Standard Ethereum: v = 27 + recovery_id (27 or 28)
-      // - EIP-155: v = chainId * 2 + 35 + recovery_id (e.g., 37, 38 for mainnet)
+      // - EIP-155: v = chainId * 2 + 35 + recovery_id (e.g., 37, 38
+      //   for mainnet)
       // - Some SDKs: v = recovery_id directly (0 or 1)
       $recoveryId = $v;
 
       if ($v >= 35) {
-        // EIP-155 signature: extract recovery ID from v
+        // EIP-155 signature: extract recovery ID from v.
         $recoveryId = ($v - 35) % 2;
         $this->logger->debug('Normalized EIP-155 v to recovery ID @id', ['@id' => $recoveryId]);
       }
       elseif ($v >= 27) {
-        // Standard Ethereum signature: v = 27 + recovery_id
+        // Standard Ethereum signature: v = 27 + recovery_id.
         $recoveryId = $v - 27;
         $this->logger->debug('Normalized Ethereum v to recovery ID @id', ['@id' => $recoveryId]);
       }
       // else: v is already the recovery ID (0-3 range)
-
       // Validate recovery ID is in valid range (0-3).
       if ($recoveryId < 0 || $recoveryId > 3) {
         $this->logger->warning('Invalid recovery ID: @id', ['@id' => $recoveryId]);
@@ -454,8 +454,7 @@ class WalletVerification {
     // Request ID: <requestId>
     // Resources:
     // - <resource1>
-    // - <resource2>
-
+    // - <resource2>.
     $fields = [];
     $lines = explode("\n", $message);
 
@@ -464,14 +463,14 @@ class WalletVerification {
       return NULL;
     }
 
-    // First line: "<domain> wants you to sign in with your Ethereum account:"
+    // First line: "<domain> wants you to sign in with your Ethereum account:".
     $domainMatch = [];
     if (!preg_match('/^(.+?) wants you to sign in with your Ethereum account:$/', $lines[0], $domainMatch)) {
       return NULL;
     }
     $fields['domain'] = trim($domainMatch[1]);
 
-    // Second line: "<address>"
+    // Second line: "<address>".
     $address = trim($lines[1]);
     if (!$this->validateAddress($address)) {
       return NULL;

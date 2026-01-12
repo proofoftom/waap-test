@@ -7,9 +7,9 @@ namespace Drupal\wallet_auth\Plugin\Block;
 use Drupal\Core\Block\BlockBase;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Access\AccessResult;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides a wallet login button block.
@@ -30,6 +30,13 @@ class WalletLoginBlock extends BlockBase implements ContainerFactoryPluginInterf
   protected ConfigFactoryInterface $configFactory;
 
   /**
+   * The current user.
+   *
+   * @var \Drupal\Core\Session\AccountInterface
+   */
+  protected AccountInterface $currentUser;
+
+  /**
    * Constructs a WalletLoginBlock.
    *
    * @param array $configuration
@@ -40,15 +47,19 @@ class WalletLoginBlock extends BlockBase implements ContainerFactoryPluginInterf
    *   The plugin implementation definition.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
+   * @param \Drupal\Core\Session\AccountInterface $current_user
+   *   The current user.
    */
   public function __construct(
     array $configuration,
     $plugin_id,
     $plugin_definition,
-    ConfigFactoryInterface $config_factory
+    ConfigFactoryInterface $config_factory,
+    AccountInterface $current_user,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->configFactory = $config_factory;
+    $this->currentUser = $current_user;
   }
 
   /**
@@ -59,7 +70,8 @@ class WalletLoginBlock extends BlockBase implements ContainerFactoryPluginInterf
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('config.factory')
+      $container->get('config.factory'),
+      $container->get('current_user'),
     );
   }
 
@@ -69,9 +81,8 @@ class WalletLoginBlock extends BlockBase implements ContainerFactoryPluginInterf
   public function build() {
     $build = [];
 
-    // Only show for anonymous users
-    $current_user = \Drupal::currentUser();
-    if ($current_user->isAuthenticated()) {
+    // Only show for anonymous users.
+    if ($this->currentUser->isAuthenticated()) {
       return $build;
     }
 
@@ -102,7 +113,7 @@ class WalletLoginBlock extends BlockBase implements ContainerFactoryPluginInterf
    * {@inheritdoc}
    */
   public function blockAccess(AccountInterface $account) {
-    // Only show for anonymous users
+    // Only show for anonymous users.
     return $account->isAnonymous() ? AccessResult::allowed() : AccessResult::forbidden();
   }
 

@@ -207,9 +207,32 @@ class WalletVerification {
       $s = substr($signatureBin, 32, 32);
       $v = ord(substr($signatureBin, 64, 1));
 
-      // Adjust v if needed (EIP-155)
-      if ($v < 27) {
+      $this->logger->debug('Raw signature values: r_len=@r_len, s_len=@s_len, v=@v', [
+        '@r_len' => strlen($r),
+        '@s_len' => strlen($s),
+        '@v' => $v,
+      ]);
+
+      // Normalize v for EIP-155 signatures.
+      // EIP-155 uses v = chainId * 2 + 35 or chainId * 2 + 36
+      // For personal_sign (EIP-191), we need v to be 27 or 28.
+      // If v >= 35, it's likely an EIP-155 signature that needs conversion.
+      if ($v >= 35) {
+        // Convert from EIP-155 v to EIP-191 v (27 or 28)
+        // Formula: v = chainId * 2 + 35 + recovery_id (0 or 1)
+        // So: recovery_id = (v - 35) % 2, then v = 27 + recovery_id
+        $v = 27 + (($v - 35) % 2);
+
+        $this->logger->debug('Normalized EIP-155 v to @v', ['@v' => $v]);
+      }
+      elseif ($v < 27) {
         $v += 27;
+      }
+
+      // Validate v is in expected range (27-30 for recovery)
+      if ($v < 27 || $v > 30) {
+        $this->logger->warning('Invalid v value after normalization: @v', ['@v' => $v]);
+        return FALSE;
       }
 
       // Add Ethereum signed message prefix.
@@ -217,8 +240,10 @@ class WalletVerification {
       $hash = Keccak::hash($prefixedMessage, 256, TRUE);
 
       // Recover public key from signature.
+      // elliptic-php expects v to be 0-3 (recovery ID), not 27-30.
+      $recoveryId = $v - 27;
       $ec = new EC('secp256k1');
-      $pubKey = $ec->recoverPubKey($hash, ['r' => $r, 's' => $s], $v);
+      $pubKey = $ec->recoverPubKey($hash, ['r' => $r, 's' => $s], $recoveryId);
 
       if ($pubKey === NULL) {
         $this->logger->warning('Failed to recover public key from signature');

@@ -10,5 +10,17 @@ export default defineConfig({
     },
     outDir: 'js/dist',
     emptyOutDir: false,
+    rollupOptions: {
+      // Don't bundle jQuery, Drupal, drupalSettings - they're loaded separately
+      external: ['jQuery', 'Drupal', 'drupalSettings'],
+      output: {
+        // Map the external modules to global variable names
+        globals: {
+          'jQuery': 'jQuery',
+          'Drupal': 'Drupal',
+          'drupalSettings': 'drupalSettings',
+        },
+      },
+    },
   },
 });

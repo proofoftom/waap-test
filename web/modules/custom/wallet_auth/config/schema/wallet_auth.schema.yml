@@ -1,0 +1,13 @@
+wallet_auth.settings:
+  type: config_object
+  label: 'Wallet authentication settings'
+  mapping:
+    network:
+      type: string
+      label: 'Blockchain network'
+    enable_auto_connect:
+      type: boolean
+      label: 'Enable auto-connect'
+    nonce_lifetime:
+      type: integer
+      label: 'Nonce lifetime (seconds)'

@@ -315,14 +315,6 @@ This module is being developed as part of a phased approach:
 - All inputs are validated and sanitized
 - Database queries use Drupal's prepared statement API
 
-## Contributing
-
-Contributions are welcome! Please see the project roadmap for planned features.
-
-## License
-
-This module is licensed under GPL-2.0-or-later.
-
 ## Credits
 
 Developed as part of the Wallet as a Protocol Drupal integration project.

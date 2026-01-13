@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\wallet_auth\Kernel;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Database\Database;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\user\Entity\User;
@@ -101,9 +102,9 @@ class WalletUserManagerTest extends KernelTestBase {
 
     $username = $method->invoke($this->walletUserManager, $walletAddress);
 
-    // Username should be wallet_ + first 8 hex chars of address (without 0x).
-    // Case is preserved from the original address.
-    $this->assertEquals('wallet_71C7656E', $username);
+    // Username should be wallet_ + first 8 hex chars of SHA256 hash of address.
+    // Hash output is lowercase.
+    $this->assertEquals('wallet_849745fa', $username);
   }
 
   /**
@@ -118,11 +119,12 @@ class WalletUserManagerTest extends KernelTestBase {
 
     // Create first user with base username.
     $firstUsername = $method->invoke($this->walletUserManager, $walletAddress);
-    $this->assertEquals('wallet_71C7656E', $firstUsername);
+    $this->assertEquals('wallet_849745fa', $firstUsername);
 
     // Manually create user to simulate collision.
+    // Note: ExternalAuth adds 'wallet_auth_' prefix, so we need to create with that prefix.
     $user = User::create([
-      'name' => $firstUsername,
+      'name' => 'wallet_auth_' . $firstUsername,
       'mail' => $firstUsername . '@example.com',
       'status' => 1,
     ]);
@@ -130,11 +132,11 @@ class WalletUserManagerTest extends KernelTestBase {
 
     // Generate username again - should add suffix.
     $secondUsername = $method->invoke($this->walletUserManager, $walletAddress);
-    $this->assertEquals('wallet_71C7656E_1', $secondUsername);
+    $this->assertEquals('wallet_849745fa_1', $secondUsername);
 
     // Create another user with the suffixed name.
     $user2 = User::create([
-      'name' => $secondUsername,
+      'name' => 'wallet_auth_' . $secondUsername,
       'mail' => $secondUsername . '@example.com',
       'status' => 1,
     ]);
@@ -142,7 +144,7 @@ class WalletUserManagerTest extends KernelTestBase {
 
     // Generate username again - should increment suffix.
     $thirdUsername = $method->invoke($this->walletUserManager, $walletAddress);
-    $this->assertEquals('wallet_71C7656E_2', $thirdUsername);
+    $this->assertEquals('wallet_849745fa_2', $thirdUsername);
   }
 
   /**
@@ -261,8 +263,22 @@ class WalletUserManagerTest extends KernelTestBase {
     ]);
     $user->save();
 
+    // Mock time service for first link (initial time).
+    $initialTime = 1600000000;
+    $mockTime = $this->createMock(TimeInterface::class);
+    $mockTime->method('getRequestTime')->willReturn($initialTime);
+
+    // Create a new instance with mocked time.
+    $walletUserManager = new WalletUserManager(
+      $this->container->get('database'),
+      $this->container->get('externalauth.externalauth'),
+      $this->container->get('entity_type.manager'),
+      $this->container->get('logger.factory'),
+      $mockTime
+    );
+
     // Link wallet first time.
-    $this->walletUserManager->linkWalletToUser($walletAddress, (int) $user->id());
+    $walletUserManager->linkWalletToUser($walletAddress, (int) $user->id());
 
     $database = $this->container->get('database');
     $firstLastUsed = $database->select('wallet_auth_wallet_address', 'wa')
@@ -271,11 +287,22 @@ class WalletUserManagerTest extends KernelTestBase {
       ->execute()
       ->fetchField();
 
-    // Wait a moment to ensure timestamp difference.
-    usleep(100000); // 100ms
+    // Mock time service for second link (later time).
+    $laterTime = $initialTime + 100;
+    $mockTime2 = $this->createMock(TimeInterface::class);
+    $mockTime2->method('getRequestTime')->willReturn($laterTime);
+
+    // Create a new instance with new mocked time.
+    $walletUserManager2 = new WalletUserManager(
+      $this->container->get('database'),
+      $this->container->get('externalauth.externalauth'),
+      $this->container->get('entity_type.manager'),
+      $this->container->get('logger.factory'),
+      $mockTime2
+    );
 
     // Link again.
-    $this->walletUserManager->linkWalletToUser($walletAddress, (int) $user->id());
+    $walletUserManager2->linkWalletToUser($walletAddress, (int) $user->id());
 
     $secondLastUsed = $database->select('wallet_auth_wallet_address', 'wa')
       ->fields('wa', ['last_used'])
@@ -283,8 +310,10 @@ class WalletUserManagerTest extends KernelTestBase {
       ->execute()
       ->fetchField();
 
-    // last_used should be updated or at least equal.
-    $this->assertGreaterThanOrEqual($firstLastUsed, $secondLastUsed);
+    // Verify timestamps reflect the mocked times.
+    $this->assertEquals($initialTime, $firstLastUsed);
+    $this->assertEquals($laterTime, $secondLastUsed);
+    $this->assertGreaterThan($firstLastUsed, $secondLastUsed);
   }
 
   /**
@@ -460,8 +489,22 @@ class WalletUserManagerTest extends KernelTestBase {
   public function testLoginOrCreateUserUpdatesLastUsed(): void {
     $walletAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
 
+    // Mock time service for first login (initial time).
+    $initialTime = 1600000000;
+    $mockTime = $this->createMock(TimeInterface::class);
+    $mockTime->method('getRequestTime')->willReturn($initialTime);
+
+    // Create a new instance with mocked time.
+    $walletUserManager = new WalletUserManager(
+      $this->container->get('database'),
+      $this->container->get('externalauth.externalauth'),
+      $this->container->get('entity_type.manager'),
+      $this->container->get('logger.factory'),
+      $mockTime
+    );
+
     // Create user.
-    $user = $this->walletUserManager->loginOrCreateUser($walletAddress);
+    $user = $walletUserManager->loginOrCreateUser($walletAddress);
 
     $database = $this->container->get('database');
     $firstLastUsed = $database->select('wallet_auth_wallet_address', 'wa')
@@ -470,11 +513,22 @@ class WalletUserManagerTest extends KernelTestBase {
       ->execute()
       ->fetchField();
 
-    // Wait a moment to ensure timestamp difference.
-    usleep(100000); // 100ms
+    // Mock time service for second login (later time).
+    $laterTime = $initialTime + 100;
+    $mockTime2 = $this->createMock(TimeInterface::class);
+    $mockTime2->method('getRequestTime')->willReturn($laterTime);
+
+    // Create a new instance with new mocked time.
+    $walletUserManager2 = new WalletUserManager(
+      $this->container->get('database'),
+      $this->container->get('externalauth.externalauth'),
+      $this->container->get('entity_type.manager'),
+      $this->container->get('logger.factory'),
+      $mockTime2
+    );
 
     // Login again.
-    $user = $this->walletUserManager->loginOrCreateUser($walletAddress);
+    $user = $walletUserManager2->loginOrCreateUser($walletAddress);
 
     $secondLastUsed = $database->select('wallet_auth_wallet_address', 'wa')
       ->fields('wa', ['last_used'])
@@ -482,8 +536,10 @@ class WalletUserManagerTest extends KernelTestBase {
       ->execute()
       ->fetchField();
 
-    // last_used should be updated or at least equal.
-    $this->assertGreaterThanOrEqual($firstLastUsed, $secondLastUsed);
+    // Verify timestamps reflect the mocked times.
+    $this->assertEquals($initialTime, $firstLastUsed);
+    $this->assertEquals($laterTime, $secondLastUsed);
+    $this->assertGreaterThan($firstLastUsed, $secondLastUsed);
   }
 
 }

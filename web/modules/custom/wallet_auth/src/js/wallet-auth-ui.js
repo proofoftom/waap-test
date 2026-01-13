@@ -18,6 +18,7 @@ var walletAuthInitialized = false;
 Drupal.behaviors.walletAuth = {
   connector: null,
   state: 'idle', // idle, connecting, connected, signing, error
+  csrfToken: null, // Store CSRF token from nonce response
 
   attach: function (context, settings) {
     // Only attach once using a simple flag
@@ -37,8 +38,8 @@ Drupal.behaviors.walletAuth = {
     // Get configuration from drupalSettings
     var config = settings.walletAuth || {};
 
-    // Initialize connector
-    this.connector = new WalletAuthConnector({
+    // Initialize connector using namespaced class
+    this.connector = new Drupal.walletAuth.WalletConnector({
       authenticationMethods: config.authenticationMethods || ['email', 'social'],
       allowedSocials: config.allowedSocials || ['google', 'twitter', 'discord'],
     });
@@ -157,6 +158,8 @@ Drupal.behaviors.walletAuth = {
     this.fetchNonce(address).then(function (data) {
       var nonce = data.nonce;
       self.connector.lastNonce = nonce;
+      // Store CSRF token for later use in authentication
+      self.csrfToken = data.csrf_token;
 
       // Step 2: Create message to sign
       var message = self.createSignMessage(address, nonce);
@@ -277,6 +280,7 @@ Drupal.behaviors.walletAuth = {
         signature: signature,
         message: message,
         nonce: nonce,
+        csrf_token: this.csrfToken,
       }),
     }).then(function (response) {
       if (!response.ok) {

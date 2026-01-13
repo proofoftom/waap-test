@@ -48,6 +48,7 @@ class WalletVerificationTest extends KernelTestBase {
 
     $this->installEntitySchema('user');
     $this->installSchema('system', ['sequences']);
+    $this->installConfig(['wallet_auth']);
 
     $this->walletVerification = $this->container->get('wallet_auth.verification');
     $this->tempStore = $this->container->get('tempstore.private')->get('wallet_auth');
@@ -94,10 +95,13 @@ class WalletVerificationTest extends KernelTestBase {
     $nonce = 'expired_nonce';
     $walletAddress = '0x1234567890123456789012345678901234567890';
 
+    $currentTime = $this->container->get('datetime.time')->getRequestTime();
+
     // Store a nonce with old timestamp (more than NONCE_LIFETIME seconds ago).
+    // The default NONCE_LIFETIME is 300 seconds.
     $this->tempStore->set($nonce, [
       'wallet_address' => $walletAddress,
-      'created' => \time() - 301, // 301 seconds ago (NONCE_LIFETIME is 300)
+      'created' => $currentTime - 301, // 301 seconds ago (expired)
     ]);
 
     // Verify expired nonce returns FALSE.

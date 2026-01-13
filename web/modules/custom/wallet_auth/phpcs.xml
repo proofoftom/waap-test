@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="wallet_auth">
+  <description>PHP CodeSniffer configuration for wallet_auth module.</description>
+  <file>src</file>
+  <file>tests</file>
+  <arg name="extensions" value="php,module,inc,install,test,profile,theme"/>
+  <rule ref="Drupal"/>
+  <rule ref="DrupalPractice"/>
+</ruleset>

@@ -9,6 +9,7 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Cache\Cache;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -104,6 +105,11 @@ class WalletLoginBlock extends BlockBase implements ContainerFactoryPluginInterf
           'redirectOnSuccess' => '/user',
         ],
       ],
+    ];
+    $build['#cache'] = [
+      'tags' => ['config:wallet_auth.settings'],
+      'contexts' => ['user.roles:anonymous'],
+      'max-age' => Cache::PERMANENT,
     ];
 
     return $build;

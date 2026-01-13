@@ -125,26 +125,29 @@ class WalletUserManager {
    *   The user ID.
    */
   public function linkWalletToUser(string $walletAddress, int $uid): void {
+    $transaction = $this->database->startTransaction();
     try {
       $currentTime = $this->time->getRequestTime();
 
-      // Check if wallet is already linked to a different user.
+      // Use SELECT FOR UPDATE to lock the row and prevent race conditions.
       $existingUid = $this->database->select('wallet_auth_wallet_address', 'wa')
         ->fields('wa', ['uid'])
         ->condition('wa.wallet_address', $walletAddress)
-        ->range(0, 1)
+        ->forUpdate()
         ->execute()
         ->fetchField();
 
       if ($existingUid && $existingUid != $uid) {
-        $this->logger->warning('Wallet @wallet already linked to user @uid, cannot relink', [
+        // Wallet is linked to a different user - cannot reassign.
+        $this->logger->warning('Attempted to link wallet @wallet to user @uid, but already linked to @existing', [
           '@wallet' => $walletAddress,
-          '@uid' => $existingUid,
+          '@uid' => $uid,
+          '@existing' => $existingUid,
         ]);
         return;
       }
 
-      // Insert or update the wallet link.
+      // Proceed with merge operation.
       $this->database->merge('wallet_auth_wallet_address')
         ->key('wallet_address', $walletAddress)
         ->fields([
@@ -161,6 +164,7 @@ class WalletUserManager {
       ]);
     }
     catch (\Exception $e) {
+      $transaction->rollBack();
       $this->logger->error('Failed to link wallet to user: @message', ['@message' => $e->getMessage()]);
       throw $e;
     }
@@ -198,7 +202,7 @@ class WalletUserManager {
   public function createUserFromWallet(string $walletAddress): UserInterface {
     // ExternalAuth prefixes usernames with provider name, so we pass just
     // the wallet identifier (without 'wallet_' prefix) to avoid duplication.
-    // Final username will be: wallet_auth_{wallet_hex}
+    // Final username will be: wallet_auth_{wallet_hex}.
     $externalUsername = $this->generateUsername($walletAddress);
     $finalUsername = 'wallet_auth_' . $externalUsername;
     $email = $finalUsername . '@wallet.local';
@@ -234,8 +238,9 @@ class WalletUserManager {
    *   A unique username (without provider prefix).
    */
   protected function generateUsername(string $walletAddress): string {
-    // Extract 8 hex chars from wallet address (without 0x prefix)
-    $baseUsername = substr($walletAddress, 2, 8);
+    // Use hash-based approach for privacy.
+    $hash = substr(hash('sha256', $walletAddress), 0, 8);
+    $baseUsername = 'wallet_' . $hash;
     $username = $baseUsername;
     $counter = 0;
 

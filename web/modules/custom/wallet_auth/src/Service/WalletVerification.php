@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace Drupal\wallet_auth\Service;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
+use Drupal\wallet_auth\WalletVerificationInterface;
 use Elliptic\EC;
 use kornrunner\Keccak;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Service for wallet signature verification and nonce management.
  */
-class WalletVerification {
+class WalletVerification implements WalletVerificationInterface {
 
   /**
    * The database connection.
@@ -28,7 +31,7 @@ class WalletVerification {
    *
    * @var \Drupal\Core\Logger\LoggerChannelInterface
    */
-  protected $logger;
+  protected \Drupal\Core\Logger\LoggerChannelInterface $logger;
 
   /**
    * The time service.
@@ -45,11 +48,39 @@ class WalletVerification {
   protected $tempStoreFactory;
 
   /**
-   * Nonce lifetime in seconds (5 minutes).
+   * The config factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
+
+  /**
+   * The request stack.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack
+   */
+  protected $requestStack;
+
+  /**
+   * Default nonce lifetime in seconds (5 minutes).
    *
    * @var int
    */
-  protected const NONCE_LIFETIME = 300;
+  protected const DEFAULT_NONCE_LIFETIME = 300;
+
+  /**
+   * Chain ID mapping for supported networks.
+   *
+   * @var array
+   */
+  protected const CHAIN_IDS = [
+    'mainnet' => 1,
+    'sepolia' => 11155111,
+    'polygon' => 137,
+    'bsc' => 56,
+    'arbitrum' => 42161,
+    'optimism' => 10,
+  ];
 
   /**
    * Constructs a WalletVerification service.
@@ -58,21 +89,29 @@ class WalletVerification {
    *   The database connection.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    *   The logger channel factory.
-   * @param \Drupal\Core\Datetime\TimeInterface $time
+   * @param \Drupal\Component\Datetime\TimeInterface $time
    *   The time service.
    * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $temp_store_factory
    *   The private tempstore factory.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
+   *   The request stack.
    */
   public function __construct(
     Connection $database,
     LoggerChannelFactoryInterface $logger_factory,
     TimeInterface $time,
     PrivateTempStoreFactory $temp_store_factory,
+    ConfigFactoryInterface $config_factory,
+    RequestStack $request_stack,
   ) {
     $this->database = $database;
     $this->logger = $logger_factory->get('wallet_auth');
     $this->time = $time;
     $this->tempStoreFactory = $temp_store_factory;
+    $this->configFactory = $config_factory;
+    $this->requestStack = $request_stack;
   }
 
   /**
@@ -141,8 +180,14 @@ class WalletVerification {
       $currentTime = $this->time->getRequestTime();
       $age = $currentTime - $data['created'];
 
-      if ($age > self::NONCE_LIFETIME) {
-        $this->logger->warning('Nonce expired (age: @age seconds)', ['@age' => $age]);
+      // Use configurable nonce lifetime from settings, fallback to default.
+      $lifetime = $this->configFactory->get('wallet_auth.settings')->get('nonce_lifetime') ?? self::DEFAULT_NONCE_LIFETIME;
+
+      if ($age > $lifetime) {
+        $this->logger->warning('Nonce expired (age: @age seconds, lifetime: @lifetime)', [
+          '@age' => $age,
+          '@lifetime' => $lifetime,
+        ]);
         $store->delete($nonce);
         return FALSE;
       }
@@ -209,6 +254,35 @@ class WalletVerification {
         return FALSE;
       }
 
+      // Validate the domain matches the current request host (Issue #3).
+      $currentRequest = $this->requestStack->getCurrentRequest();
+      if ($currentRequest !== NULL) {
+        $expectedHost = $currentRequest->getHost();
+        if ($siweFields['domain'] !== $expectedHost) {
+          $this->logger->warning('SIWE domain mismatch: expected @expected, got @actual', [
+            '@expected' => $expectedHost,
+            '@actual' => $siweFields['domain'],
+          ]);
+          return FALSE;
+        }
+      }
+
+      // Validate the chain ID matches the configured network (Issue #2).
+      if (isset($siweFields['chainId'])) {
+        $messageChainId = (int) $siweFields['chainId'];
+        $configuredNetwork = $this->configFactory->get('wallet_auth.settings')->get('network') ?? 'mainnet';
+        $expectedChainId = $this->getChainIdForNetwork($configuredNetwork);
+
+        if ($expectedChainId !== NULL && $messageChainId !== $expectedChainId) {
+          $this->logger->warning('SIWE chain ID mismatch: expected @expected (@network), got @actual', [
+            '@expected' => $expectedChainId,
+            '@network' => $configuredNetwork,
+            '@actual' => $messageChainId,
+          ]);
+          return FALSE;
+        }
+      }
+
       // Validate the nonce hasn't expired.
       if (isset($siweFields['expirationTime'])) {
         $expirationTime = strtotime($siweFields['expirationTime']);
@@ -224,6 +298,17 @@ class WalletVerification {
         // Allow 30 seconds clock skew.
         if ($issuedAt > $this->time->getRequestTime() + 30) {
           $this->logger->warning('SIWE message issued in the future');
+          return FALSE;
+        }
+      }
+
+      // Validate "not before" time constraint (Issue #9).
+      if (isset($siweFields['notBefore'])) {
+        $notBefore = strtotime($siweFields['notBefore']);
+        if ($notBefore > $this->time->getRequestTime()) {
+          $this->logger->warning('SIWE message not yet valid (notBefore: @notBefore)', [
+            '@notBefore' => $siweFields['notBefore'],
+          ]);
           return FALSE;
         }
       }
@@ -549,6 +634,19 @@ class WalletVerification {
     catch (\Exception $e) {
       $this->logger->error('Failed to delete nonce: @message', ['@message' => $e->getMessage()]);
     }
+  }
+
+  /**
+   * Get the chain ID for a given network name.
+   *
+   * @param string $network
+   *   The network name (e.g., 'mainnet', 'sepolia', 'polygon').
+   *
+   * @return int|null
+   *   The chain ID, or NULL if the network is not recognized.
+   */
+  protected function getChainIdForNetwork(string $network): ?int {
+    return self::CHAIN_IDS[$network] ?? NULL;
   }
 
 }

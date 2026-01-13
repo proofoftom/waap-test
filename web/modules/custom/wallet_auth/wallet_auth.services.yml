@@ -6,6 +6,8 @@ services:
       - '@logger.factory'
       - '@datetime.time'
       - '@tempstore.private'
+      - '@config.factory'
+      - '@request_stack'
   wallet_auth.user_manager:
     class: Drupal\wallet_auth\Service\WalletUserManager
     arguments:
@@ -14,3 +16,7 @@ services:
       - '@entity_type.manager'
       - '@logger.factory'
       - '@datetime.time'
+  wallet_auth.access_checker:
+    class: Drupal\wallet_auth\Access\WalletAuthAccessCheck
+    tags:
+      - { name: access_check, applies_to: _wallet_auth_access }

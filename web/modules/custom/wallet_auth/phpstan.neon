@@ -1,0 +1,8 @@
+parameters:
+  level: 6
+  paths:
+    - src
+  drupal:
+    drupal_root: %currentWorkingDirectory%/../../../..
+  ignoreErrors:
+    - '#Call to an undefined method Drupal\\Core\\Entity\\EntityInterface::#'

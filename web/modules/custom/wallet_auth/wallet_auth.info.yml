@@ -10,8 +10,8 @@ type: module
 # Brief description of what the module does
 description: 'Wallet-based authentication using Wallet as a Protocol'
 
-# Drupal core version requirement: ^10 means Drupal 10.x
-core_version_requirement: ^10
+# Drupal core version requirement: ^10 || ^11 means Drupal 10.x or 11.x
+core_version_requirement: ^10 || ^11
 
 # PHP version requirement
 php: 8.2

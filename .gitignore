@@ -36,3 +36,4 @@ Thumbs.db
 npm-debug.log
 yarn-error.log
 test-wallet-auth.php
+.claude/settings.local.json

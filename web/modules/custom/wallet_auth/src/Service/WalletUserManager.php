@@ -196,11 +196,15 @@ class WalletUserManager {
    *   The created user.
    */
   public function createUserFromWallet(string $walletAddress): UserInterface {
-    $username = $this->generateUsername($walletAddress);
-    $email = $username . '@wallet.local';
+    // ExternalAuth prefixes usernames with provider name, so we pass just
+    // the wallet identifier (without 'wallet_' prefix) to avoid duplication.
+    // Final username will be: wallet_auth_{wallet_hex}
+    $externalUsername = $this->generateUsername($walletAddress);
+    $finalUsername = 'wallet_auth_' . $externalUsername;
+    $email = $finalUsername . '@wallet.local';
 
     // Use External Auth to register the user.
-    $account = $this->externalAuth->register($username, 'wallet_auth');
+    $account = $this->externalAuth->register($externalUsername, 'wallet_auth');
     $account->setEmail($email);
     $account->activate();
     $account->save();
@@ -209,7 +213,7 @@ class WalletUserManager {
     $this->linkWalletToUser($walletAddress, (int) $account->id());
 
     $this->logger->info('Created new user @username from wallet @wallet', [
-      '@username' => $username,
+      '@username' => $finalUsername,
       '@wallet' => $walletAddress,
     ]);
 
@@ -219,19 +223,24 @@ class WalletUserManager {
   /**
    * Generate a unique username from a wallet address.
    *
+   * Note: This returns the base username (without provider prefix).
+   * ExternalAuth will prefix with 'wallet_auth_' so final username is:
+   * wallet_auth_{wallet_hex}
+   *
    * @param string $walletAddress
    *   The wallet address.
    *
    * @return string
-   *   A unique username.
+   *   A unique username (without provider prefix).
    */
   protected function generateUsername(string $walletAddress): string {
-    $baseUsername = 'wallet_' . substr($walletAddress, 2, 8);
+    // Extract 8 hex chars from wallet address (without 0x prefix)
+    $baseUsername = substr($walletAddress, 2, 8);
     $username = $baseUsername;
     $counter = 0;
 
-    // Ensure username is unique.
-    while ($this->usernameExists($username)) {
+    // Ensure username is unique (checking for final name with provider prefix).
+    while ($this->usernameExists('wallet_auth_' . $username)) {
       $counter++;
       $username = $baseUsername . '_' . $counter;
     }

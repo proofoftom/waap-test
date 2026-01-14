@@ -173,21 +173,28 @@ The module includes a comprehensive PHPUnit test suite.
 
 ### Running Tests
 
-Run the full test suite:
+This project uses a split directory structure where `vendor/` is at the project root and Drupal's web root is in `web/`. Tests must be run from the `web/` directory:
 
 ```bash
-# From the Drupal root
-phpunit -c phpunit.xml web/modules/custom/wallet_auth/tests/
+# From the Drupal root (web/ directory)
+cd web
+../vendor/bin/phpunit -c phpunit.xml modules/custom/wallet_auth/tests/
 ```
 
 Run specific test suites:
 
 ```bash
+# From the web/ directory
+cd web
+
 # Kernel tests only
-phpunit -c phpunit.xml web/modules/custom/wallet_auth/tests/Kernel/
+../vendor/bin/phpunit -c phpunit.xml modules/custom/wallet_auth/tests/Kernel/
 
 # Functional tests only
-phpunit -c phpunit.xml web/modules/custom/wallet_auth/tests/Functional/
+../vendor/bin/phpunit -c phpunit.xml modules/custom/wallet_auth/tests/Functional/
+
+# Specific test file
+../vendor/bin/phpunit -c phpunit.xml modules/custom/wallet_auth/tests/Kernel/WalletVerificationTest.php
 ```
 
 ### Test Coverage

@@ -8,6 +8,7 @@
  */
 
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\wallet_auth\Entity\WalletAddressInterface;
 
 /**
  * Implements hook_help().
@@ -134,6 +135,25 @@ function wallet_auth_preprocess_menu(&$variables) {
     // For authenticated users: hide the wallet auth link.
     if (isset($variables['items']['wallet_auth.login'])) {
       unset($variables['items']['wallet_auth.login']);
+    }
+  }
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_insert() for wallet_address entities.
+ *
+ * Syncs wallet address to user.field_ethereum_address for safe_smart_accounts
+ * compatibility when a new wallet is linked.
+ */
+function wallet_auth_wallet_address_insert(WalletAddressInterface $entity) {
+  $user = $entity->getOwner();
+  // Only sync if the field exists and is currently empty.
+  if ($user && $user->hasField('field_ethereum_address')) {
+    $current = $user->get('field_ethereum_address')->value;
+    if (empty($current)) {
+      // Store address in lowercase for consistency with safe_smart_accounts.
+      $user->set('field_ethereum_address', strtolower($entity->getWalletAddress()));
+      $user->save();
     }
   }
 }

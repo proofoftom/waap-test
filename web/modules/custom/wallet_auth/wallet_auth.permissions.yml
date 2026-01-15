@@ -2,3 +2,18 @@ authenticate with wallet:
   title: 'Authenticate with wallet'
   description: 'Allow users to authenticate using their wallet address.'
   restrict access: false
+
+administer wallet addresses:
+  title: 'Administer wallet addresses'
+  description: 'Full administrative control over wallet addresses.'
+  restrict access: true
+
+view wallet addresses:
+  title: 'View wallet addresses'
+  description: 'View all wallet address mappings.'
+  restrict access: true
+
+view own wallet addresses:
+  title: 'View own wallet addresses'
+  description: 'Allow users to view their own wallet address mappings.'
+  restrict access: false

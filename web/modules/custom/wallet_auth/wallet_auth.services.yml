@@ -11,11 +11,11 @@ services:
   wallet_auth.user_manager:
     class: Drupal\wallet_auth\Service\WalletUserManager
     arguments:
-      - '@database'
       - '@externalauth.externalauth'
       - '@entity_type.manager'
       - '@logger.factory'
       - '@datetime.time'
+      - '@event_dispatcher'
   wallet_auth.access_checker:
     class: Drupal\wallet_auth\Access\WalletAuthAccessCheck
     tags:

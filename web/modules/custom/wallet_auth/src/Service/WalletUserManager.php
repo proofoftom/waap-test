@@ -4,24 +4,21 @@ declare(strict_types=1);
 
 namespace Drupal\wallet_auth\Service;
 
-use Drupal\Core\Database\Connection;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\externalauth\ExternalAuthInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\user\UserInterface;
+use Drupal\wallet_auth\Entity\WalletAddressInterface;
+use Drupal\wallet_auth\Event\WalletAuthEvents;
+use Drupal\wallet_auth\Event\WalletLinkedEvent;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Service for managing wallet-to-user mapping and user creation.
  */
 class WalletUserManager implements WalletUserManagerInterface {
-
-  /**
-   * The database connection.
-   *
-   * @var \Drupal\Core\Database\Connection
-   */
-  protected $database;
 
   /**
    * The external authentication service.
@@ -47,36 +44,53 @@ class WalletUserManager implements WalletUserManagerInterface {
   /**
    * The time service.
    *
-   * @var \Drupal\Core\Datetime\TimeInterface
+   * @var \Drupal\Component\Datetime\TimeInterface
    */
   protected $time;
 
   /**
+   * The event dispatcher.
+   *
+   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   */
+  protected $eventDispatcher;
+
+  /**
    * Constructs a WalletUserManager service.
    *
-   * @param \Drupal\Core\Database\Connection $database
-   *   The database connection.
    * @param \Drupal\externalauth\ExternalAuthInterface $external_auth
    *   The external authentication service.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   The entity type manager.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    *   The logger channel factory.
-   * @param \Drupal\Core\Datetime\TimeInterface $time
+   * @param \Drupal\Component\Datetime\TimeInterface $time
    *   The time service.
+   * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher
+   *   The event dispatcher.
    */
   public function __construct(
-    Connection $database,
     ExternalAuthInterface $external_auth,
     EntityTypeManagerInterface $entity_type_manager,
     LoggerChannelFactoryInterface $logger_factory,
     TimeInterface $time,
+    EventDispatcherInterface $event_dispatcher,
   ) {
-    $this->database = $database;
     $this->externalAuth = $external_auth;
     $this->entityTypeManager = $entity_type_manager;
     $this->logger = $logger_factory->get('wallet_auth');
     $this->time = $time;
+    $this->eventDispatcher = $event_dispatcher;
+  }
+
+  /**
+   * Gets the wallet address entity storage.
+   *
+   * @return \Drupal\Core\Entity\EntityStorageInterface
+   *   The wallet address storage.
+   */
+  protected function getWalletStorage(): EntityStorageInterface {
+    return $this->entityTypeManager->getStorage('wallet_address');
   }
 
   /**
@@ -90,21 +104,32 @@ class WalletUserManager implements WalletUserManagerInterface {
    */
   public function loadUserByWalletAddress(string $walletAddress): ?UserInterface {
     try {
-      $query = $this->database->select('wallet_auth_wallet_address', 'wa')
-        ->fields('wa', ['uid'])
-        ->condition('wa.wallet_address', $walletAddress)
-        ->condition('wa.status', 1)
-        ->range(0, 1);
+      /** @var \Drupal\wallet_auth\Entity\WalletAddressInterface[] $wallets */
+      $wallets = $this->getWalletStorage()->loadByProperties([
+        'wallet_address' => $walletAddress,
+      ]);
 
-      $uid = $query->execute()->fetchField();
-
-      if (!$uid) {
+      $wallet = reset($wallets);
+      if (!$wallet) {
         return NULL;
       }
 
-      $user = $this->entityTypeManager->getStorage('user')->load($uid);
+      // Check if wallet is active.
+      if (!$wallet->isActive()) {
+        return NULL;
+      }
 
-      if ($user && $user->isActive()) {
+      $user = $wallet->getOwner();
+
+      // Handle orphaned wallets where user was deleted.
+      // Return NULL to allow reassignment to new user.
+      // The linkWalletToUser() method will handle reassigning this wallet.
+      if (!$user || !$user->id()) {
+        return NULL;
+      }
+
+      // Also check if user is active.
+      if ($user->isActive()) {
         return $user;
       }
 
@@ -125,38 +150,69 @@ class WalletUserManager implements WalletUserManagerInterface {
    *   The user ID.
    */
   public function linkWalletToUser(string $walletAddress, int $uid): void {
-    $transaction = $this->database->startTransaction();
     try {
+      $storage = $this->getWalletStorage();
       $currentTime = $this->time->getRequestTime();
 
-      // Use SELECT FOR UPDATE to lock the row and prevent race conditions.
-      $existingUid = $this->database->select('wallet_auth_wallet_address', 'wa')
-        ->fields('wa', ['uid'])
-        ->condition('wa.wallet_address', $walletAddress)
-        ->forUpdate()
-        ->execute()
-        ->fetchField();
+      // Check if wallet already exists.
+      /** @var \Drupal\wallet_auth\Entity\WalletAddressInterface[] $wallets */
+      $wallets = $storage->loadByProperties([
+        'wallet_address' => $walletAddress,
+      ]);
+      $wallet = reset($wallets);
 
-      if ($existingUid && $existingUid != $uid) {
-        // Wallet is linked to a different user - cannot reassign.
-        $this->logger->warning('Attempted to link wallet @wallet to user @uid, but already linked to @existing', [
-          '@wallet' => $walletAddress,
-          '@uid' => $uid,
-          '@existing' => $existingUid,
-        ]);
-        return;
-      }
+      $isNew = FALSE;
 
-      // Proceed with merge operation.
-      $this->database->merge('wallet_auth_wallet_address')
-        ->key('wallet_address', $walletAddress)
-        ->fields([
+      if (!$wallet) {
+        // Create new wallet entity.
+        $wallet = $storage->create([
+          'wallet_address' => $walletAddress,
           'uid' => $uid,
-          'created' => $existingUid ? $this->getWalletCreatedTime($walletAddress) : $currentTime,
+          'created' => $currentTime,
           'last_used' => $currentTime,
           'status' => 1,
-        ])
-        ->execute();
+        ]);
+        $isNew = TRUE;
+      }
+      else {
+        // Check if the current owner still exists.
+        $currentOwner = $wallet->getOwner();
+        $ownerExists = $currentOwner && $currentOwner->id();
+
+        // Check if wallet is linked to a different user.
+        if ($ownerExists && $wallet->getOwnerId() != $uid) {
+          // Wallet is linked to a different active user - cannot reassign.
+          $this->logger->warning('Attempted to link wallet @wallet to user @uid, but already linked to @existing', [
+            '@wallet' => $walletAddress,
+            '@uid' => $uid,
+            '@existing' => $wallet->getOwnerId(),
+          ]);
+          return;
+        }
+
+        // If owner was deleted, reassign the wallet to new user.
+        if (!$ownerExists) {
+          $this->logger->notice('Reassigning orphaned wallet @wallet to user @uid (previous owner deleted)', [
+            '@wallet' => $walletAddress,
+            '@uid' => $uid,
+          ]);
+          $wallet->setOwnerId($uid);
+          $isNew = TRUE;
+        }
+
+        // Update existing wallet.
+        $wallet->setLastUsedTime($currentTime);
+        $wallet->setActive(TRUE);
+      }
+
+      $wallet->save();
+
+      // Dispatch event for subscribers.
+      $user = $this->entityTypeManager->getStorage('user')->load($uid);
+      if ($user) {
+        $event = new WalletLinkedEvent($walletAddress, $uid, $user, $isNew);
+        $this->eventDispatcher->dispatch($event, WalletAuthEvents::WALLET_LINKED);
+      }
 
       $this->logger->info('Linked wallet @wallet to user @uid', [
         '@wallet' => $walletAddress,
@@ -164,30 +220,9 @@ class WalletUserManager implements WalletUserManagerInterface {
       ]);
     }
     catch (\Exception $e) {
-      $transaction->rollBack();
       $this->logger->error('Failed to link wallet to user: @message', ['@message' => $e->getMessage()]);
       throw $e;
     }
-  }
-
-  /**
-   * Get the created time for a wallet address.
-   *
-   * @param string $walletAddress
-   *   The wallet address.
-   *
-   * @return int
-   *   The created timestamp, or current time if not found.
-   */
-  protected function getWalletCreatedTime(string $walletAddress): int {
-    $created = $this->database->select('wallet_auth_wallet_address', 'wa')
-      ->fields('wa', ['created'])
-      ->condition('wa.wallet_address', $walletAddress)
-      ->range(0, 1)
-      ->execute()
-      ->fetchField();
-
-    return (int) $created ?: $this->time->getRequestTime();
   }
 
   /**
@@ -263,12 +298,14 @@ class WalletUserManager implements WalletUserManagerInterface {
    *   TRUE if username exists, FALSE otherwise.
    */
   protected function usernameExists(string $username): bool {
-    return (bool) $this->database->select('users_field_data', 'u')
-      ->fields('u', ['uid'])
-      ->condition('u.name', $username)
+    $users = $this->entityTypeManager->getStorage('user')
+      ->getQuery()
+      ->condition('name', $username)
       ->range(0, 1)
-      ->execute()
-      ->fetchField();
+      ->accessCheck(FALSE)
+      ->execute();
+
+    return !empty($users);
   }
 
   /**
@@ -289,10 +326,15 @@ class WalletUserManager implements WalletUserManagerInterface {
 
     if ($existingUser) {
       // Update last_used timestamp.
-      $this->database->update('wallet_auth_wallet_address')
-        ->fields(['last_used' => $this->time->getRequestTime()])
-        ->condition('wallet_address', $walletAddress)
-        ->execute();
+      /** @var \Drupal\wallet_auth\Entity\WalletAddressInterface[] $wallets */
+      $wallets = $this->getWalletStorage()->loadByProperties([
+        'wallet_address' => $walletAddress,
+      ]);
+      $wallet = reset($wallets);
+      if ($wallet) {
+        $wallet->setLastUsedTime($this->time->getRequestTime());
+        $wallet->save();
+      }
 
       $this->logger->info('Logging in existing user @uid for wallet @wallet', [
         '@uid' => $existingUser->id(),
@@ -317,12 +359,19 @@ class WalletUserManager implements WalletUserManagerInterface {
    */
   public function getUserWallets(int $uid): array {
     try {
-      return $this->database->select('wallet_auth_wallet_address', 'wa')
-        ->fields('wa', ['wallet_address'])
-        ->condition('wa.uid', $uid)
-        ->condition('wa.status', 1)
-        ->execute()
-        ->fetchCol();
+      /** @var \Drupal\wallet_auth\Entity\WalletAddressInterface[] $wallets */
+      $wallets = $this->getWalletStorage()->loadByProperties([
+        'uid' => $uid,
+      ]);
+
+      // Filter to active wallets only.
+      $activeWallets = array_filter($wallets, function (WalletAddressInterface $wallet) {
+        return $wallet->isActive();
+      });
+
+      return array_map(function (WalletAddressInterface $wallet) {
+        return $wallet->getWalletAddress();
+      }, $activeWallets);
     }
     catch (\Exception $e) {
       $this->logger->error('Failed to get user wallets: @message', ['@message' => $e->getMessage()]);

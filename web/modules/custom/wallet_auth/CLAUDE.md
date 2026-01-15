@@ -175,18 +175,6 @@ Get a nonce for signing.
 
 ## Development Commands
 
-### Code Quality
-```bash
-# PHP CodeSniffer (Drupal coding standards)
-vendor/bin/phpcs --standard=phpcs.xml
-
-# PHPStan (Level 6 static analysis)
-vendor/bin/phpstan analyse -c phpstan.neon
-
-# Auto-fix coding standards
-vendor/bin/phpcbf --standard=phpcs.xml
-```
-
 ### Testing
 Tests must be run from the web/ directory (split directory structure):
 ```bash
@@ -206,7 +194,7 @@ cd web
 ../vendor/bin/phpunit -c phpunit.xml modules/custom/wallet_auth/tests/src/Kernel/WalletVerificationTest.php
 ```
 
-**Test Coverage**: 64 tests, 339 assertions, 82% coverage of critical services
+**Test Coverage**: 84+ tests across 7 test files (Kernel and Functional)
 
 ### JavaScript Build
 ```bash

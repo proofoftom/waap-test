@@ -1,0 +1,5 @@
+entity.wallet_address.collection:
+  title: 'Wallets'
+  route_name: entity.wallet_address.collection
+  base_route: entity.user.collection
+  weight: 5

@@ -32,3 +32,108 @@ function wallet_auth_theme($existing, $type, $theme, $path) {
     ],
   ];
 }
+
+/**
+ * Implements hook_menu_links_discovered_alter().
+ *
+ * Hides the default "Log in" link since wallet_auth provides its own.
+ */
+function wallet_auth_menu_links_discovered_alter(&$links) {
+  // Hide the default login/logout link from the account menu.
+  // The wallet_auth.login link replaces it for anonymous users.
+  if (isset($links['user.logout'])) {
+    // Keep the logout link but hide the login portion.
+    // The LoginLogoutMenuLink shows "Log in" for anonymous users,
+    // but we want our wallet auth link instead.
+    // We can't easily modify the dynamic link, so we'll handle visibility
+    // in the preprocess hook instead.
+  }
+}
+
+/**
+ * Implements hook_page_attachments().
+ *
+ * Attaches the wallet auth library for anonymous users.
+ */
+function wallet_auth_page_attachments(array &$attachments) {
+  // Only attach for anonymous users.
+  if (\Drupal::currentUser()->isAnonymous()) {
+    $config = \Drupal::config('wallet_auth.settings');
+
+    // Build WaaP config object for the SDK.
+    $waapConfig = [
+      'allowedSocials' => $config->get('allowed_socials') ?? ['google', 'twitter', 'discord', 'bluesky'],
+      'authenticationMethods' => $config->get('authentication_methods') ?? ['email', 'social'],
+    ];
+
+    // Add styles if configured.
+    $darkMode = $config->get('styles.darkMode');
+    if ($darkMode !== NULL) {
+      $waapConfig['styles'] = ['darkMode' => $darkMode];
+    }
+
+    // Add showSecured if explicitly set to false.
+    if ($config->get('showSecured') === FALSE) {
+      $waapConfig['showSecured'] = FALSE;
+    }
+
+    $network = $config->get('network') ?? 'mainnet';
+    $chainIds = [
+      'mainnet' => 1,
+      'sepolia' => 11155111,
+      'polygon' => 137,
+      'bsc' => 56,
+      'arbitrum' => 42161,
+      'optimism' => 10,
+    ];
+
+    $attachments['#attached']['library'][] = 'wallet_auth/wallet_auth_ui';
+    $attachments['#attached']['drupalSettings']['walletAuth'] = [
+      'apiEndpoint' => '/wallet-auth',
+      'network' => $network,
+      'chainId' => $chainIds[$network] ?? 1,
+      'authenticationMethods' => $config->get('authentication_methods') ?? ['email', 'social'],
+      'allowedSocials' => $config->get('allowed_socials') ?? ['google', 'twitter', 'discord', 'bluesky'],
+      'redirectOnSuccess' => $config->get('redirect_on_success') ?? '/user',
+      'waapConfig' => $waapConfig,
+      'walletConnectProjectId' => $config->get('walletConnectProjectId') ?? '',
+      'projectName' => $config->get('project.name') ?? '',
+      'projectLogo' => $config->get('project.logo') ?? '',
+      'projectEntryTitle' => $config->get('project.entryTitle') ?? '',
+      'buttonText' => $config->get('button_text') ?? 'Sign In',
+      'displayMode' => $config->get('display_mode') ?? 'link',
+    ];
+
+    $attachments['#cache']['contexts'][] = 'user.roles:anonymous';
+    $attachments['#cache']['tags'][] = 'config:wallet_auth.settings';
+  }
+}
+
+/**
+ * Implements hook_preprocess_menu().
+ *
+ * Manages visibility of authentication links in the account menu.
+ *
+ * For anonymous users: hides default "Log in", shows wallet auth link.
+ * For authenticated users: hides wallet auth link, shows default links.
+ */
+function wallet_auth_preprocess_menu(&$variables) {
+  // Only process the account menu.
+  if (!isset($variables['menu_name']) || $variables['menu_name'] !== 'account') {
+    return;
+  }
+
+  if (\Drupal::currentUser()->isAnonymous()) {
+    // For anonymous users: hide the default login link.
+    // The user.logout link shows "Log in" for anonymous users.
+    if (isset($variables['items']['user.logout'])) {
+      unset($variables['items']['user.logout']);
+    }
+  }
+  else {
+    // For authenticated users: hide the wallet auth link.
+    if (isset($variables['items']['wallet_auth.login'])) {
+      unset($variables['items']['wallet_auth.login']);
+    }
+  }
+}

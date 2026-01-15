@@ -45,19 +45,22 @@ wallet_auth/
 │   ├── Controller/
 │   │   ├── NonceController.php           # GET /wallet-auth/nonce
 │   │   └── AuthenticateController.php    # POST /wallet-auth/authenticate
-│   ├── Plugin/Block/
-│   │   └── WalletLoginBlock.php          # Login button block
+│   ├── Plugin/
+│   │   ├── Block/
+│   │   │   └── WalletLoginBlock.php      # Optional login button block
+│   │   └── Menu/
+│   │       └── WalletAuthMenuLink.php    # Account menu "Sign In" link
 │   ├── Form/
 │   │   └── SettingsForm.php              # Admin config form
 │   └── Access/
 │       └── WalletAuthAccessCheck.php
 ├── js/
 │   ├── src/
-│   │   ├── connector.js                  # Wallet connection logic
-│   │   └── ui.js                         # UI interaction
+│   │   ├── wallet-auth-connector.js      # Wallet connection (WAAP SDK)
+│   │   └── wallet-auth-ui.js             # UI interaction logic
 │   └── dist/                             # Built JS bundles
 ├── css/
-│   └── wallet-login-block.css
+│   └── wallet-auth.css                   # Component styles
 ├── tests/
 │   └── src/
 │       ├── Kernel/
@@ -72,7 +75,8 @@ wallet_auth/
 ├── wallet_auth.info.yml
 ├── wallet_auth.services.yml
 ├── wallet_auth.routing.yml
-├── wallet_auth.module
+├── wallet_auth.links.menu.yml            # Menu link definitions
+├── wallet_auth.module                    # Hooks (preprocess, page_attachments)
 ├── wallet_auth.install                   # Database schema
 └── wallet_auth.libraries.yml
 ```
@@ -162,10 +166,12 @@ Builds two bundles via Vite:
 
 ## Important Notes
 
+- **Automatic Menu Integration**: Module adds "Sign In" to User Account Menu automatically via `WalletAuthMenuLink` plugin - no block placement needed
+- **Menu Link Visibility**: For anonymous users, hides default "Log in" and shows wallet auth. For authenticated users, hides wallet auth link.
+- **Optional Block**: `WalletLoginBlock` available for custom placement with link/button display modes
 - **Separate Git Repository**: This module has its own `.git` directory - it's not tracked in the parent project's git repo
 - **No Private Keys**: Module never handles or stores private keys - only wallet addresses
 - **Single-Use Nonces**: Nonces expire after 5 minutes (configurable) and are deleted after use
-- **Block Visibility**: Wallet Login block only displays for anonymous users
 - **Username Format**: Auto-created users get username `wallet_0x1234...` (truncated address)
 - **EIP-55 Checksums**: All addresses validated with EIP-55 checksum
 - **Split Directory**: Project uses split structure with `vendor/` at root and Drupal in `web/`
@@ -174,8 +180,10 @@ Builds two bundles via Vite:
 
 Admin settings at `/admin/config/people/wallet-auth`:
 - Blockchain network selection (Mainnet, Sepolia, Polygon, etc.)
-- Auto-connect toggle
+- Sign-in button text (default: "Sign In")
+- Display mode: link (matches nav styling) or button (theme button styling)
 - Nonce lifetime (60-3600 seconds)
+- WaaP SDK options (authentication methods, allowed socials, dark mode)
 
 ## REST API Endpoints
 
@@ -203,6 +211,16 @@ Response:
 ```
 
 ## Common Tasks
+
+### Menu Link Integration
+The module uses these hooks in `wallet_auth.module`:
+- `hook_page_attachments()` - Attaches JS library for anonymous users
+- `hook_preprocess_menu()` - Controls visibility of login links in account menu
+
+The `WalletAuthMenuLink` plugin (`src/Plugin/Menu/WalletAuthMenuLink.php`):
+- Adds "Sign In" link to account menu via `wallet_auth.links.menu.yml`
+- Uses `<nolink>` route (JS handles click via `.wallet-auth-trigger` class)
+- Gets title from config (`button_text` setting)
 
 ### Adding New Test
 1. Create test file in `tests/src/Kernel/` or `tests/src/Functional/`

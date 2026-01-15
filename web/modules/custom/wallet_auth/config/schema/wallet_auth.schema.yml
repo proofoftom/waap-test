@@ -39,6 +39,9 @@ wallet_auth.settings:
     button_text:
       type: string
       label: 'Sign-in button text'
+    display_mode:
+      type: string
+      label: 'Display mode (link or button)'
     project:
       type: mapping
       label: 'Project branding'

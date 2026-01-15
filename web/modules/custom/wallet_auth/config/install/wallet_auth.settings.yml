@@ -14,6 +14,7 @@ styles:
   darkMode: false
 showSecured: true
 button_text: 'Sign In'
+display_mode: 'link'
 project:
   name: ''
   logo: ''

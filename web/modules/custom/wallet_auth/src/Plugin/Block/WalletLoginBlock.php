@@ -128,8 +128,9 @@ class WalletLoginBlock extends BlockBase implements ContainerFactoryPluginInterf
           'projectName' => $config->get('project.name') ?? '',
           'projectLogo' => $config->get('project.logo') ?? '',
           'projectEntryTitle' => $config->get('project.entryTitle') ?? '',
-          // Button text.
+          // Button text and display mode.
           'buttonText' => $config->get('button_text') ?? 'Sign In',
+          'displayMode' => $config->get('display_mode') ?? 'link',
         ],
       ],
     ];
@@ -146,8 +147,10 @@ class WalletLoginBlock extends BlockBase implements ContainerFactoryPluginInterf
    * {@inheritdoc}
    */
   public function blockAccess(AccountInterface $account) {
-    // Only show for anonymous users.
-    return $account->isAnonymous() ? AccessResult::allowed() : AccessResult::forbidden();
+    // Only show for anonymous users. Cache per user role to ensure proper
+    // visibility after login/logout.
+    return AccessResult::allowedIf($account->isAnonymous())
+      ->addCacheContexts(['user.roles:anonymous']);
   }
 
   /**

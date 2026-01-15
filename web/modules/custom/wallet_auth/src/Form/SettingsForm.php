@@ -264,6 +264,18 @@ class SettingsForm extends ConfigFormBase {
       '#required' => TRUE,
     ];
 
+    $form['branding_settings']['display_mode'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Display style'),
+      '#description' => $this->t('Choose how the sign-in element appears. "Link" matches navigation links. "Button" uses theme button styling.'),
+      '#options' => [
+        'link' => $this->t('Link'),
+        'button' => $this->t('Button'),
+      ],
+      '#default_value' => $config->get('display_mode') ?? 'link',
+      '#required' => TRUE,
+    ];
+
     return parent::buildForm($form, $form_state);
   }
 
@@ -341,6 +353,7 @@ class SettingsForm extends ConfigFormBase {
       ->set('project.logo_fid', $logo_fid)
       ->set('project.entryTitle', $form_state->getValue('project_entryTitle'))
       ->set('button_text', $form_state->getValue('button_text'))
+      ->set('display_mode', $form_state->getValue('display_mode'))
       ->save();
 
     $this->logger->info('Wallet authentication settings updated.');

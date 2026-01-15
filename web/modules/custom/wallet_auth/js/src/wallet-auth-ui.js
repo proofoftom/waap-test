@@ -23,6 +23,7 @@ Drupal.behaviors.walletAuth = {
   state: "idle", // idle, signing, error, authenticated
   csrfToken: null, // Store CSRF token from nonce response
   buttonText: "Sign In", // Configurable button text
+  displayMode: "link", // Display mode: 'link' or 'button'
 
   attach: function (context, settings) {
     // Only attach once using a simple flag
@@ -52,12 +53,19 @@ Drupal.behaviors.walletAuth = {
     // Initialize connector using namespaced class
     this.connector = new Drupal.walletAuth.WalletConnector(waapConfig);
 
-    // Get configurable button text
+    // Get configurable button text and display mode
     this.buttonText = config.buttonText || "Sign In";
+    this.displayMode = config.displayMode || "link";
 
-    // Bind sign-in button
-    var $loginButton = $(".wallet-auth-login-btn", context);
-    $loginButton.on("click", function (e) {
+    // Apply display mode classes
+    var $trigger = $(".wallet-auth-trigger", context);
+    if (this.displayMode === "button") {
+      // Add Drupal button classes for theme styling
+      $trigger.addClass("button button--primary button--small");
+    }
+
+    // Bind sign-in trigger
+    $trigger.on("click", function (e) {
       e.preventDefault();
       self.handleSignIn();
     });
@@ -294,47 +302,73 @@ Drupal.behaviors.walletAuth = {
    * Update UI based on current state.
    *
    * States:
-   * - idle: Ready to sign in, button shows "Sign In"
-   * - signing: Authentication in progress, button disabled
+   * - idle: Ready to sign in, trigger shows configured text
+   * - signing: Authentication in progress, trigger disabled
    * - authenticated: Success, redirecting
-   * - error: Failed, button shows "Try Again"
+   * - error: Failed, trigger shows "Try Again"
+   *
+   * Supports both block template (has .wallet-auth-container and span) and
+   * menu link (plain text content, no container).
    */
   updateUI: function () {
     var $ = jQuery;
-    var $loginButton = $(".wallet-auth-login-btn");
+    var $trigger = $(".wallet-auth-trigger");
     var $status = $(".wallet-auth-status");
+    var $container = $(".wallet-auth-container");
+
+    // Helper to set trigger text, handling both block (has span) and menu link (plain text).
+    var setTriggerText = function ($el, text) {
+      var $span = $el.find("span");
+      if ($span.length) {
+        $span.text(text);
+      } else {
+        $el.text(text);
+      }
+    };
 
     switch (this.state) {
       case "idle":
-        $loginButton
-          .prop("disabled", false)
-          .find("span")
-          .text(this.buttonText);
-        $status.text("");
+        $trigger.removeClass("is-disabled");
+        setTriggerText($trigger, this.buttonText);
+        if ($container.length) {
+          $container.attr("data-wallet-auth-state", "idle");
+        }
+        if ($status.length) {
+          $status.text("");
+        }
         break;
 
       case "signing":
-        $loginButton
-          .prop("disabled", true)
-          .find("span")
-          .text("Signing in...");
-        $status.text("Please complete the sign-in in your wallet...");
+        $trigger.addClass("is-disabled");
+        setTriggerText($trigger, "Signing in...");
+        if ($container.length) {
+          $container.attr("data-wallet-auth-state", "signing");
+        }
+        if ($status.length) {
+          $status.text("Please complete the sign-in in your wallet...");
+        }
         break;
 
       case "authenticated":
-        $loginButton
-          .prop("disabled", true)
-          .find("span")
-          .text("Signed In");
-        $status.text("Authentication successful!");
+        $trigger.addClass("is-disabled");
+        setTriggerText($trigger, "Signed In");
+        if ($container.length) {
+          $container.attr("data-wallet-auth-state", "authenticated");
+        }
+        if ($status.length) {
+          $status.text("Authentication successful!");
+        }
         break;
 
       case "error":
-        $loginButton
-          .prop("disabled", false)
-          .find("span")
-          .text("Try Again");
-        $status.text("Sign-in failed. Please try again.");
+        $trigger.removeClass("is-disabled");
+        setTriggerText($trigger, "Try Again");
+        if ($container.length) {
+          $container.attr("data-wallet-auth-state", "error");
+        }
+        if ($status.length) {
+          $status.text("Sign-in failed. Please try again.");
+        }
         break;
     }
   },

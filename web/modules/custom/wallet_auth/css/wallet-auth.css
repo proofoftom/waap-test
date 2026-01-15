@@ -7,41 +7,60 @@
  * Wallet auth container.
  */
 .wallet-auth-container {
-  margin: 1rem 0;
-  max-width: 400px;
+  display: flex;
+  align-items: center;
 }
 
 /**
- * Login button.
+ * Base trigger element (anchor tag).
+ * Minimal styles - let theme handle appearance.
  */
-.wallet-auth-login-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background-color: #6c757d;
-  color: #fff;
-  border: 2px solid #6c757d;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-weight: 600;
+.wallet-auth-trigger {
   cursor: pointer;
-  transition: all 0.2s ease;
   text-decoration: none;
 }
 
-.wallet-auth-login-btn:hover,
-.wallet-auth-login-btn:focus {
-  background-color: #5a6268;
-  border-color: #5a6268;
-  outline: none;
+/**
+ * Hover styles for standalone trigger (not in nav menu).
+ * When inside .secondary-nav, Olivero provides its own hover effect.
+ */
+.wallet-auth-container .wallet-auth-trigger:hover,
+.wallet-auth-container .wallet-auth-trigger:focus {
+  text-decoration: underline;
 }
 
-.wallet-auth-login-btn:disabled {
-  background-color: #ccc;
-  border-color: #ccc;
-  cursor: not-allowed;
+/**
+ * When in navigation context, match Olivero's link hover color.
+ */
+.secondary-nav .wallet-auth-trigger:hover,
+.secondary-nav .wallet-auth-trigger:focus {
+  color: var(--color--primary-50);
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+/**
+ * Disabled state (used during signing).
+ */
+.wallet-auth-trigger.is-disabled {
+  pointer-events: none;
+  opacity: 0.6;
+  cursor: default;
+}
+
+/**
+ * Button mode: When display_mode is 'button', JS adds Drupal button classes.
+ * The button/button--primary classes come from the theme.
+ * We only add wallet-specific enhancements here.
+ */
+.wallet-auth-trigger.button {
+  text-decoration: none;
+  color: #fff;
+}
+
+.wallet-auth-trigger.button:hover,
+.wallet-auth-trigger.button:focus {
+  text-decoration: none;
 }
 
 /**
@@ -75,12 +94,14 @@
 /**
  * State-specific styles.
  */
-[data-wallet-auth-state="signing"] .wallet-auth-login-btn {
+[data-wallet-auth-state="signing"] .wallet-auth-trigger {
   position: relative;
+  pointer-events: none;
+  opacity: 0.7;
 }
 
-[data-wallet-auth-state="signing"] .wallet-auth-login-btn::before {
-  content: '';
+[data-wallet-auth-state="signing"] .wallet-auth-trigger.button::before {
+  content: "";
   position: absolute;
   left: 0.75rem;
   width: 1rem;
@@ -91,7 +112,7 @@
   animation: wallet-auth-spin 0.6s linear infinite;
 }
 
-[data-wallet-auth-state="signing"] .wallet-auth-login-btn span {
+[data-wallet-auth-state="signing"] .wallet-auth-trigger.button span {
   padding-left: 1.5rem;
 }
 
@@ -105,7 +126,8 @@
 /**
  * Success state.
  */
-.wallet-auth-container[data-wallet-auth-state="authenticated"] .wallet-auth-status {
+.wallet-auth-container[data-wallet-auth-state="authenticated"]
+  .wallet-auth-status {
   color: #28a745;
 }
 
@@ -125,11 +147,7 @@
  * Responsive adjustments.
  */
 @media (max-width: 600px) {
-  .wallet-auth-container {
-    max-width: 100%;
-  }
-
-  .wallet-auth-login-btn {
+  .wallet-auth-trigger.button {
     width: 100%;
   }
 }

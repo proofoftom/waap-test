@@ -22,14 +22,19 @@ The following PHP packages are required:
 2. Enable the module via Drush: `drush pm:enable wallet_auth -y`
    or through the admin interface at `/admin/modules`.
 3. Clear caches: `drush cache:rebuild`
-4. **Place the Wallet Login block:**
-   - Navigate to `/admin/structure/block`
-   - Select a theme region (e.g., "Sidebar First" or "Content")
-   - Click "Place block" and find "Wallet Login Button"
-   - Configure block visibility if needed
-   - Click "Save block"
-5. Configure settings (optional): Navigate to
+4. Configure settings (optional): Navigate to
    `/admin/config/people/wallet-auth`
+
+**That's it!** The module automatically adds a "Sign In" link to the
+User Account Menu. No block placement required.
+
+### Optional: Wallet Login Block
+
+For more flexibility, a standalone Wallet Login Block is also available:
+- Navigate to `/admin/structure/block`
+- Click "Place block" and find "Wallet Login Button"
+- Configure block visibility and display mode (link or button)
+- Click "Save block"
 
 ## Configuration
 
@@ -41,8 +46,10 @@ The module provides an administrative settings page at
 
 - **Blockchain network**: Select the Ethereum-compatible network to use
   (Mainnet, Sepolia, Polygon, BSC, Arbitrum, Optimism). Default: Mainnet.
-- **Enable auto-connect**: Automatically attempt to connect the wallet
-  when the block loads. Default: Enabled.
+- **Sign-in button text**: Customize the text shown on the sign-in link/button.
+  Default: "Sign In".
+- **Display style**: Choose between "Link" (matches navigation styling) or
+  "Button" (uses theme button styling). Default: Link.
 - **Nonce lifetime**: How long authentication nonces remain valid,
   in seconds (60-3600). Default: 300 (5 minutes).
 
@@ -56,13 +63,13 @@ Navigate to `/admin/config/people/wallet-auth` or:
 
 ### For End Users
 
-1. Visit a page with the Wallet Login block placed
-2. Click "Connect Wallet" to open your browser wallet extension
-3. Approve the signature request in your wallet
+1. Click "Sign In" in the User Account Menu (or Wallet Login block if placed)
+2. Complete authentication in the wallet modal (email, social, or wallet)
+3. Approve the signature request if using a crypto wallet
 4. You will be automatically logged in to Drupal
 
-**Note:** The Wallet Login block only displays for anonymous users.
-Authenticated users will not see the block.
+**Note:** The "Sign In" link only displays for anonymous users.
+Authenticated users see "My account" and "Log out" instead.
 
 ### User Account Creation
 

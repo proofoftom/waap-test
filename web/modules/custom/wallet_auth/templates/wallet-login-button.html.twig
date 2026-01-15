@@ -5,11 +5,15 @@
  *
  * Available variables:
  * - None (all config via drupalSettings)
+ *
+ * Display modes:
+ * - link: Renders as a text link matching navigation links
+ * - button: Renders with Drupal button classes for theme styling
  */
 #}
 <div class="wallet-auth-container" data-wallet-auth-state="idle">
-  <button class="wallet-auth-login-btn">
+  <a href="#" class="wallet-auth-trigger">
     <span>Sign In</span>
-  </button>
+  </a>
   <div class="wallet-auth-status"></div>
 </div>

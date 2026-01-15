@@ -4,3 +4,11 @@ wallet_auth.settings:
   route_name: wallet_auth.settings
   parent: user.admin_index
   weight: 10
+
+# Wallet auth link in account menu (replaces "Log in" for anonymous users).
+wallet_auth.login:
+  title: 'Sign In'
+  menu_name: account
+  route_name: '<nolink>'
+  weight: 0
+  class: Drupal\wallet_auth\Plugin\Menu\WalletAuthMenuLink

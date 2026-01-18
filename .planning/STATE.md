@@ -13,20 +13,15 @@
 
 ## Current Phase
 
-**Phase 7: Add ENS Resolution to wallet_auth** — 🚧 *In Progress*
+**Phase 7: Add ENS Resolution to wallet_auth** — 📋 *Planned, Ready for Execution*
 
-Port ENS resolution capability from siwe_login using HTTP-based JSON-RPC (no web3p dependency).
+Research complete. Plan created. Ready to execute.
 
-**Progress:**
-- ✅ Created `EnsResolverInterface.php`
-- ✅ Created `EnsResolver.php` (HTTP-based with Guzzle)
-- ✅ Created `RpcProviderManager.php`
-- ✅ Updated `wallet_auth.services.yml`
-- ✅ Updated `wallet_auth.schema.yml` with ENS config
-- ✅ Updated `wallet_auth.settings.yml` with ENS defaults
-- ⬜ Run PHPCS/PHPStan checks
-- ⬜ Create EnsResolver tests
-- ⬜ Archive phase and update state
+**Status:**
+- ✅ Spike code in stash: `git stash@{0}`
+- ✅ Research complete: `phases/07-ens-resolution/RESEARCH.md`
+- ✅ Plan ready: `phases/07-ens-resolution/07-ens-resolution-PLAN.md`
+- ⬜ Execute with `/gsd:execute-plan`
 
 ---
 
@@ -57,14 +52,13 @@ See ROADMAP.md for detailed phase summaries.
 ## Session History
 
 **Session 6** (2025-01-16):
-- Started Milestone 2.0: Merge siwe_login into wallet_auth
-- Started Phase 7: Add ENS Resolution to wallet_auth
-- Created EnsResolverInterface.php
-- Created EnsResolver.php using HTTP-based JSON-RPC (Guzzle, no web3p dependency)
-- Created RpcProviderManager.php for RPC endpoint management with failover
-- Updated wallet_auth.services.yml with new services
-- Updated config schema and settings for ENS options
-- Set up GSD milestone tracking
+- Created Milestone 2.0: Merge siwe_login into wallet_auth
+- Set up GSD milestone tracking (MILESTONES.md, ROADMAP.md, phase directories)
+- Completed Phase 7 spike (ENS resolution) - but skipped research/plan ceremony
+- Spike included: EnsResolver.php (HTTP-based), RpcProviderManager.php, config updates
+- Decision: Stash spike work, do proper /gsd:research-phase and /gsd:plan-phase first
+- Stashed code: `git stash show -p stash@{0}`
+- Created SPIKE-NOTES.md with handoff documentation
 
 **Sessions 1-5** (2025-01-12):
 - Completed Milestone 1.0 (all 6 phases)
